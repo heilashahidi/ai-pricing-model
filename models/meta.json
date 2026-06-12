@@ -1,0 +1,86 @@
+{
+  "training_median_interval": 212.28,
+  "categories": [
+    "Appliance Repair",
+    "Auto",
+    "Chimney",
+    "Cleaning",
+    "Electrical",
+    "Exterior",
+    "Flooring",
+    "General Contractor",
+    "Handyman",
+    "HVAC",
+    "Landscaping",
+    "Moving",
+    "Painting",
+    "Pest Control",
+    "Plumbing",
+    "Pool",
+    "Remodeling",
+    "Roofing"
+  ],
+  "production_categories": [
+    "Cleaning",
+    "Electrical",
+    "Exterior",
+    "HVAC",
+    "Handyman",
+    "Landscaping",
+    "Pest Control",
+    "Plumbing"
+  ],
+  "well_priced_categories": [
+    "Cleaning",
+    "HVAC",
+    "Landscaping",
+    "Moving",
+    "Pest Control",
+    "Roofing"
+  ],
+  "feature_names": [
+    "labor_only",
+    "has_area_measure",
+    "task_count",
+    "complexity_tier",
+    "deadline",
+    "state_median_income",
+    "original_estimate",
+    "cat_appliance_repair",
+    "cat_auto",
+    "cat_chimney",
+    "cat_cleaning",
+    "cat_electrical",
+    "cat_exterior",
+    "cat_flooring",
+    "cat_general_contractor",
+    "cat_handyman",
+    "cat_hvac",
+    "cat_landscaping",
+    "cat_moving",
+    "cat_painting",
+    "cat_pest_control",
+    "cat_plumbing",
+    "cat_pool",
+    "cat_remodeling",
+    "cat_roofing"
+  ],
+  "deadline_map": {
+    "As soon as possible": 4,
+    "Within 1 week": 3,
+    "Within 1-2 weeks": 2,
+    "Within 1 month": 1,
+    "I'm flexible": 0,
+    "": 0
+  },
+  "complexity_map": {
+    "low": 0,
+    "medium": 1,
+    "high": 2
+  },
+  "n_train": 411,
+  "blend_weights": {
+    "well_priced": 0.2,
+    "hard": 0.7
+  }
+}

@@ -1,0 +1,29 @@
+# Secrets
+.env
+
+# Claude Code internals
+.agents/
+skills-lock.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Models (large binary files — regenerate with train.py)
+models/*.joblib
+
+# Generated data files
+features.csv
+features_enriched.csv
+
+# Rails
+pricing_api/log/
+pricing_api/tmp/
+pricing_api/storage/
+pricing_api/.bundle/
+pricing_api/config/master.key
+
+# macOS
+.DS_Store
