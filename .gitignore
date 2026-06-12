@@ -11,8 +11,8 @@ __pycache__/
 *.pyo
 .pytest_cache/
 
-# Models (large binary files — regenerate with train.py)
-models/*.joblib
+# Model artifacts are tracked (needed for Docker build on Railway)
+# To regenerate: python3 train.py
 
 # Generated data files
 features.csv

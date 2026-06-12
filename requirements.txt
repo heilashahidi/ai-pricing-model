@@ -1,0 +1,10 @@
+anthropic==0.97.0
+fastapi==0.128.8
+joblib==1.5.3
+numpy==2.0.2
+pandas==2.3.3
+pgeocode==0.4.1
+pydantic==2.12.5
+scikit-learn==1.6.1
+uvicorn==0.39.0
+xgboost==2.1.4

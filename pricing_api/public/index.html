@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HouseAccount AI Pricing</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --brand:    #1a1a2e;
+      --accent:   #4f46e5;
+      --accent-h: #4338ca;
+      --success:  #059669;
+      --warn:     #d97706;
+      --danger:   #dc2626;
+      --border:   #e5e7eb;
+      --muted:    #6b7280;
+      --bg:       #f9fafb;
+      --card:     #ffffff;
+      --radius:   10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: #111827;
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--brand);
+      color: white;
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header .logo { font-weight: 700; font-size: 1rem; letter-spacing: .02em; }
+    header .badge {
+      font-size: .7rem;
+      background: rgba(255,255,255,.15);
+      padding: 3px 10px;
+      border-radius: 20px;
+      letter-spacing: .05em;
+    }
+
+    .layout {
+      max-width: 1080px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+    @media (max-width: 700px) { .layout { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+    }
+    .card-title {
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: .35rem;
+    }
+    .field { margin-bottom: 1rem; }
+    input, select, textarea {
+      width: 100%;
+      padding: .6rem .75rem;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: .875rem;
+      color: #111827;
+      background: #fff;
+      transition: border-color .15s;
+      font-family: inherit;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79,70,229,.08);
+    }
+    textarea { resize: vertical; min-height: 90px; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+
+    button {
+      width: 100%;
+      padding: .75rem 1.5rem;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 7px;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+      margin-top: .5rem;
+    }
+    button:hover:not(:disabled) { background: var(--accent-h); }
+    button:active:not(:disabled) { transform: scale(.99); }
+    button:disabled { opacity: .55; cursor: default; }
+
+    /* ── Result panel ── */
+    .result-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .75rem;
+      padding: 3rem 1rem;
+      color: var(--muted);
+      text-align: center;
+    }
+    .result-empty svg { opacity: .35; }
+    .result-empty p { font-size: .85rem; }
+
+    .estimate-range {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+    }
+    .bound {
+      flex: 1;
+      text-align: center;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem .5rem;
+    }
+    .bound .label { font-size: .65rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: .2rem; }
+    .bound .val   { font-size: 1.25rem; font-weight: 700; }
+
+    .midpoint-card {
+      background: var(--accent);
+      color: white;
+      border-radius: 10px;
+      padding: 1.25rem;
+      text-align: center;
+      margin-bottom: 1.25rem;
+    }
+    .midpoint-card .label { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; opacity: .8; }
+    .midpoint-card .price { font-size: 2.5rem; font-weight: 800; line-height: 1; margin: .35rem 0 0; }
+
+    .conf-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .conf-bar-wrap {
+      flex: 1;
+      background: var(--bg);
+      border-radius: 100px;
+      height: 10px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .conf-bar {
+      height: 100%;
+      border-radius: 100px;
+      transition: width .6s ease;
+    }
+    .conf-label {
+      font-size: .85rem;
+      font-weight: 700;
+      min-width: 48px;
+      text-align: right;
+    }
+    .conf-text {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      padding: .5rem .75rem;
+      background: var(--bg);
+      border-radius: 7px;
+      border: 1px solid var(--border);
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: .75rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      padding-top: .75rem;
+    }
+    .meta-row strong { color: #374151; }
+
+    .badge-ood {
+      display: inline-block;
+      font-size: .7rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-bottom: .75rem;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      vertical-align: middle;
+      margin-right: .4rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-box {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      color: var(--danger);
+      font-size: .85rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo">HouseAccount · AI Pricing</span>
+  <span class="badge">DEMO</span>
+</header>
+
+<div class="layout">
+
+  <!-- Form -->
+  <div class="card">
+    <div class="card-title">Booking Details</div>
+
+    <div class="field">
+      <label for="service_category">Service Category *</label>
+      <select id="service_category">
+        <option value="">Select a category…</option>
+        <option value="Appliance Repair">Appliance Repair</option>
+        <option value="Auto">Auto</option>
+        <option value="Chimney">Chimney</option>
+        <option value="Cleaning">Cleaning</option>
+        <option value="Electrical">Electrical</option>
+        <option value="Exterior">Exterior</option>
+        <option value="Flooring">Flooring</option>
+        <option value="General Contractor">General Contractor</option>
+        <option value="Handyman" selected>Handyman</option>
+        <option value="HVAC">HVAC</option>
+        <option value="Landscaping">Landscaping</option>
+        <option value="Moving">Moving</option>
+        <option value="Painting">Painting</option>
+        <option value="Pest Control">Pest Control</option>
+        <option value="Plumbing">Plumbing</option>
+        <option value="Pool">Pool</option>
+        <option value="Remodeling">Remodeling</option>
+        <option value="Roofing">Roofing</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="job_description">Job Description *</label>
+      <textarea id="job_description" placeholder="Describe the job in detail. Include what the homeowner supplies, how many items, scope…">Install 3 supplied exterior shutters (we supply all shutters and hardware)</textarea>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="zip_code">ZIP Code *</label>
+        <input type="text" id="zip_code" value="33484" maxlength="5" placeholder="e.g. 78704">
+      </div>
+      <div class="field">
+        <label for="deadline">Deadline</label>
+        <select id="deadline">
+          <option value="">No preference</option>
+          <option value="As soon as possible">As soon as possible</option>
+          <option value="Within 1 week">Within 1 week</option>
+          <option value="Within 1-2 weeks" selected>Within 1-2 weeks</option>
+          <option value="Within 1 month">Within 1 month</option>
+          <option value="I'm flexible">I'm flexible</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="service_subtype">Service Subtype <span style="color:var(--muted)">(optional)</span></label>
+      <input type="text" id="service_subtype" placeholder="e.g. Shutter Installation">
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="original_estimate">Current Estimate ($) <span style="color:var(--muted)">(optional)</span></label>
+        <input type="number" id="original_estimate" value="750" placeholder="Baseline estimate">
+      </div>
+      <div class="field">
+        <label for="job_id">Job ID</label>
+        <input type="text" id="job_id" placeholder="auto-generated" readonly style="background:#f3f4f6;color:var(--muted)">
+      </div>
+    </div>
+
+    <button id="submit-btn" onclick="getPricing()">
+      Get Price Estimate
+    </button>
+  </div>
+
+  <!-- Result -->
+  <div class="card" id="result-panel">
+    <div class="card-title">Price Estimate</div>
+    <div class="result-empty" id="empty-state">
+      <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+      </svg>
+      <p>Fill in the booking details and click<br><strong>Get Price Estimate</strong></p>
+    </div>
+    <div id="result-content" style="display:none"></div>
+  </div>
+
+</div>
+
+<script>
+  // Auto-generate a job ID on load
+  document.getElementById('job_id').value = 'demo-' + Math.random().toString(36).slice(2, 10);
+
+  const ENDPOINT = '/.netlify/functions/pricing-estimate';
+  const SECRET   = document.cookie.match(/pricing_secret=([^;]+)/)?.[1] || '';
+
+  function fmt(n) {
+    return '$' + Math.round(n).toLocaleString();
+  }
+
+  function confColor(c) {
+    if (c >= 0.75) return 'var(--success)';
+    if (c >= 0.5)  return 'var(--warn)';
+    return 'var(--danger)';
+  }
+
+  function confText(c, category) {
+    const OOD_CATS = ['Auto','Chimney','Flooring','General Contractor','Moving','Painting','Pool','Remodeling','Roofing','Appliance Repair'];
+    if (c < 0.5) {
+      if (OOD_CATS.includes(category)) return '⚠️ Outside production verticals — low confidence estimate. Route for manual review.';
+      return '⚠️ Out-of-distribution input (price range or interval width). Handle with caution.';
+    }
+    if (c >= 0.75) return '✓ High confidence. Homeowners typically book without shopping the market at this level.';
+    return '○ Moderate confidence. Provider may verify scope before accepting.';
+  }
+
+  async function getPricing() {
+    const category = document.getElementById('service_category').value;
+    const desc     = document.getElementById('job_description').value.trim();
+    const zip      = document.getElementById('zip_code').value.trim();
+    const deadline = document.getElementById('deadline').value;
+    const subtype  = document.getElementById('service_subtype').value.trim();
+    const origEst  = document.getElementById('original_estimate').value;
+    const jobId    = document.getElementById('job_id').value;
+
+    if (!category || !desc || !zip) {
+      alert('Service Category, Job Description, and ZIP Code are required.');
+      return;
+    }
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Estimating…';
+
+    document.getElementById('empty-state').style.display   = 'none';
+    document.getElementById('result-content').style.display = 'none';
+
+    const payload = { job_id: jobId, service_category: category, zip_code: zip, job_description: desc };
+    if (deadline) payload.deadline = deadline;
+    if (subtype)  payload.service_subtype = subtype;
+    if (origEst)  payload.original_estimate = parseFloat(origEst);
+
+    try {
+      const res = await fetch(ENDPOINT, {
+        method:  'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer ' + (SECRET || prompt('Enter GAUNTLET_PRICING_SECRET:') || ''),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        document.getElementById('result-content').innerHTML =
+          `<div class="error-box">Error ${res.status}: ${data.error || JSON.stringify(data)}</div>`;
+        document.getElementById('result-content').style.display = 'block';
+        return;
+      }
+
+      const lo   = data.estimate_lo;
+      const hi   = data.estimate_hi;
+      const mid  = data.estimate_midpoint;
+      const conf = data.confidence;
+      const color = confColor(conf);
+      const pct   = Math.round(conf * 100);
+      const ood   = conf < 0.5;
+
+      document.getElementById('result-content').innerHTML = `
+        ${ood ? `<div class="badge-ood" style="background:#fef2f2;color:var(--danger);border:1px solid #fecaca">Out of distribution</div>` : ''}
+
+        <div class="midpoint-card">
+          <div class="label">Point Estimate</div>
+          <div class="price">${fmt(mid)}</div>
+        </div>
+
+        <div class="estimate-range">
+          <div class="bound">
+            <div class="label">Low</div>
+            <div class="val" style="color:var(--muted)">${fmt(lo)}</div>
+          </div>
+          <div style="color:var(--border);font-size:1.2rem">—</div>
+          <div class="bound">
+            <div class="label">High</div>
+            <div class="val" style="color:var(--muted)">${fmt(hi)}</div>
+          </div>
+        </div>
+
+        <div class="conf-row">
+          <span style="font-size:.8rem;font-weight:500;color:#374151">Confidence</span>
+          <div class="conf-bar-wrap">
+            <div class="conf-bar" style="width:${pct}%;background:${color}"></div>
+          </div>
+          <span class="conf-label" style="color:${color}">${pct}%</span>
+        </div>
+
+        <div class="conf-text">${confText(conf, category)}</div>
+
+        <div class="meta-row">
+          <span>Model <strong>${data.model_version}</strong></span>
+          <span>Job <strong>${data.job_id}</strong></span>
+        </div>
+      `;
+
+      document.getElementById('result-content').style.display = 'block';
+
+      // Rotate job ID for next request
+      document.getElementById('job_id').value = 'demo-' + Math.random().toString(36).slice(2, 10);
+
+    } catch (err) {
+      document.getElementById('result-content').innerHTML =
+        `<div class="error-box">Network error: ${err.message}. Is the server running?</div>`;
+      document.getElementById('result-content').style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'Get Price Estimate';
+    }
+  }
+
+  // Allow Enter in single-line inputs to submit
+  document.querySelectorAll('input').forEach(el =>
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') getPricing(); })
+  );
+</script>
+
+</body>
+</html>
