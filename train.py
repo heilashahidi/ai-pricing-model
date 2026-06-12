@@ -1,5 +1,6 @@
 """
-Trains 3 XGBoost quantile models (q=0.1, q=0.5, q=0.9) on enriched features.
+Trains 3 XGBoost quantile models (q=0.05, q=0.5, q=0.95) on enriched features.
+Wider 90% nominal interval (vs 80%) improves coverage on variable-scope categories.
 Evaluates against baseline (original_estimate) on all metrics.
 Saves model artifacts to models/.
 
@@ -162,9 +163,9 @@ def all_metrics(actual, pred_mid, pred_lo, pred_hi, label=""):
         "WAPE":     round(wape(actual, pred_mid), 2),
         "Bias":     round(bias(actual, pred_mid), 2),
         "Coverage": round(coverage(actual, pred_lo, pred_hi), 1),
-        "Pinball10":round(pinball(actual, pred_lo,  0.1), 2),
-        "Pinball50":round(pinball(actual, pred_mid, 0.5), 2),
-        "Pinball90":round(pinball(actual, pred_hi,  0.9), 2),
+        "Pinball05":round(pinball(actual, pred_lo,  0.05), 2),
+        "Pinball50":round(pinball(actual, pred_mid, 0.5),  2),
+        "Pinball95":round(pinball(actual, pred_hi,  0.95), 2),
     }
 
 
@@ -187,7 +188,7 @@ def xgb_params(quantile):
 
 def train_models(X_train, y_train):
     models = {}
-    for q in [0.1, 0.5, 0.9]:
+    for q in [0.05, 0.5, 0.95]:
         m = xgb.XGBRegressor(**xgb_params(q))
         m.fit(X_train, y_train)
         models[q] = m
@@ -195,9 +196,9 @@ def train_models(X_train, y_train):
 
 
 def predict(models, X):
-    lo  = models[0.1].predict(X)
+    lo  = models[0.05].predict(X)
     mid = models[0.5].predict(X)
-    hi  = models[0.9].predict(X)
+    hi  = models[0.95].predict(X)
     return fix_intervals(lo, mid, hi)
 
 
@@ -333,9 +334,9 @@ def main():
         hm_cf_hi[pos]  = max(hi[0],  0.1) * hm_baseline_hi[pos]
     hm_cf_results = all_metrics(hm_y, hm_cf_mid, hm_cf_lo, hm_cf_hi, "Correction-factor (Handyman LOO)")
 
-    joblib.dump(cf_models[0.5], os.path.join(MODELS_DIR, "xgb_cf_q05.joblib"))
-    joblib.dump(cf_models[0.1], os.path.join(MODELS_DIR, "xgb_cf_q01.joblib"))
-    joblib.dump(cf_models[0.9], os.path.join(MODELS_DIR, "xgb_cf_q09.joblib"))
+    joblib.dump(cf_models[0.50], os.path.join(MODELS_DIR, "xgb_cf_q050.joblib"))
+    joblib.dump(cf_models[0.05], os.path.join(MODELS_DIR, "xgb_cf_q005.joblib"))
+    joblib.dump(cf_models[0.95], os.path.join(MODELS_DIR, "xgb_cf_q095.joblib"))
 
     # ── Routing strategy ────────────────────────────────────────────────────
     # Use original_estimate directly for well-priced categories.
@@ -373,7 +374,7 @@ def main():
     # ── Save full model ─────────────────────────────────────────────────────
     print("\nSaving models...")
     for q, m in models_full.items():
-        path = os.path.join(MODELS_DIR, f"xgb_q{int(q*10):02d}.joblib")
+        path = os.path.join(MODELS_DIR, f"xgb_q{int(q*100):03d}.joblib")
         joblib.dump(m, path)
     meta = {
         "training_median_interval": TRAINING_MEDIAN_INTERVAL,
@@ -429,9 +430,9 @@ def main():
 
     print(f"\nCALIBRATION:")
     print(f"  Coverage (% actuals inside [lo,hi]): {cv_results['Coverage']:.1f}%  (target: ~80%)")
-    print(f"  Pinball q=0.1: {cv_results['Pinball10']:.2f}")
-    print(f"  Pinball q=0.5: {cv_results['Pinball50']:.2f}")
-    print(f"  Pinball q=0.9: {cv_results['Pinball90']:.2f}")
+    print(f"  Pinball q=0.05: {cv_results['Pinball05']:.2f}")
+    print(f"  Pinball q=0.50: {cv_results['Pinball50']:.2f}")
+    print(f"  Pinball q=0.95: {cv_results['Pinball95']:.2f}")
 
     # Pass/fail
     print("\n" + "=" * 90)

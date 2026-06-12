@@ -77,7 +77,7 @@ state = State()
 async def lifespan(app: FastAPI):
     # Load models
     log.info("Loading model artifacts...")
-    for q, tag in [(0.1,"q01"), (0.5,"q05"), (0.9,"q09")]:
+    for q, tag in [(0.05,"q005"), (0.5,"q050"), (0.95,"q095")]:
         path = os.path.join(MODELS_DIR, f"xgb_{tag}.joblib")
         if not os.path.exists(path):
             raise RuntimeError(f"Model not found: {path}. Run train.py first.")
@@ -226,9 +226,9 @@ def route_predict(req: PricingRequest, X: np.ndarray) -> tuple[float, float, flo
         return fix_intervals(lo, mid, hi)
 
     # Hard categories (Handyman, Plumbing, etc.) → XGBoost
-    lo_raw  = float(state.models[0.1].predict(X)[0])
+    lo_raw  = float(state.models[0.05].predict(X)[0])
     mid_raw = float(state.models[0.5].predict(X)[0])
-    hi_raw  = float(state.models[0.9].predict(X)[0])
+    hi_raw  = float(state.models[0.95].predict(X)[0])
     return fix_intervals(lo_raw, mid_raw, hi_raw)
 
 

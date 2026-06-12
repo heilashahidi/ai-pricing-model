@@ -92,7 +92,7 @@ python3 train.py
 **Terminal 1 — FastAPI model service:**
 
 ```bash
-python3 -m uvicorn pricing_service:app --port 8000
+python3 -m uvicorn pricing_service:app --port 8001
 ```
 
 **Terminal 2 — Rails API:**

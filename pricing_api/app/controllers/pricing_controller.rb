@@ -1,6 +1,6 @@
 class PricingController < ApplicationController
   REQUIRED_FIELDS = %w[job_id service_category zip_code job_description].freeze
-  PRICING_SERVICE_URL = ENV.fetch("PRICING_SERVICE_URL", "http://localhost:8000/predict")
+  PRICING_SERVICE_URL = ENV.fetch("PRICING_SERVICE_URL", "http://localhost:8001/predict")
   PRICING_SERVICE_TIMEOUT = 8 # seconds — leaves headroom under the 2s SLA
 
   def estimate

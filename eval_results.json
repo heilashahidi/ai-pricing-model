@@ -8,9 +8,9 @@
     "WAPE": 9.17,
     "Bias": 5.57,
     "Coverage": 97.3,
-    "Pinball10": 20.48,
+    "Pinball05": 11.07,
     "Pinball50": 26.77,
-    "Pinball90": 20.71
+    "Pinball95": 10.74
   },
   "cv_overall": {
     "label": "Model 5-fold CV (all categories)",
@@ -20,10 +20,10 @@
     "RMSE": 209.16,
     "WAPE": 13.63,
     "Bias": -16.29,
-    "Coverage": 63.3,
-    "Pinball10": 19.07,
+    "Coverage": 71.0,
+    "Pinball05": 16.09,
     "Pinball50": 39.79,
-    "Pinball90": 21.48
+    "Pinball95": 18.18
   },
   "routed": {
     "label": "Routed (baseline/model by category)",
@@ -33,10 +33,10 @@
     "RMSE": 92.44,
     "WAPE": 9.15,
     "Bias": 2.64,
-    "Coverage": 92.0,
-    "Pinball10": 19.63,
+    "Coverage": 93.9,
+    "Pinball05": 10.55,
     "Pinball50": 26.71,
-    "Pinball90": 22.29
+    "Pinball95": 12.62
   },
   "handyman_baseline": {
     "label": "Baseline (Handyman)",
@@ -47,9 +47,9 @@
     "WAPE": 53.55,
     "Bias": 93.04,
     "Coverage": 64.3,
-    "Pinball10": 34.29,
+    "Pinball05": 32.32,
     "Pinball50": 70.09,
-    "Pinball90": 36.46
+    "Pinball95": 25.2
   },
   "handyman_model": {
     "label": "Model LOO-CV (Handyman)",
@@ -59,10 +59,10 @@
     "RMSE": 149.76,
     "WAPE": 38.14,
     "Bias": 23.58,
-    "Coverage": 35.7,
-    "Pinball10": 36.12,
+    "Coverage": 50.0,
+    "Pinball05": 20.46,
     "Pinball50": 49.92,
-    "Pinball90": 22.69
+    "Pinball95": 17.82
   },
   "handyman_blended": {
     "label": "Model blended (Handyman)",
@@ -72,10 +72,10 @@
     "RMSE": 167.67,
     "WAPE": 42.52,
     "Bias": 44.42,
-    "Coverage": 57.1,
-    "Pinball10": 35.57,
+    "Coverage": 64.3,
+    "Pinball05": 20.18,
     "Pinball50": 55.65,
-    "Pinball90": 23.26
+    "Pinball95": 11.57
   },
   "per_category": {
     "Appliance Repair": {
