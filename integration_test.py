@@ -7,19 +7,14 @@ Tests the full round-trip:
   3. Posts to HouseAccount staging (pro.houseparty.dev) with our price estimate
      and verifies their system accepts it
 
-Required env vars:
-  GAUNTLET_PRICING_SECRET     — bearer token for YOUR endpoint
-  RAILS_URL                   — default http://localhost:3000
-
-HouseAccount staging (already configured — no extra env vars needed):
-  App-Name:    gauntlet
-  Signing key: Dq+pSVNf7DxSzQxxvRSeh0mk32e+V3m+KCTv9boGstI=
-
-Auth scheme: HMAC-SHA256 of "timestamp.payload_body" using the base64-decoded signing secret.
-Headers: App-Name, App-Timestamp, App-Signature
+Required env vars (all in .env):
+  GAUNTLET_PRICING_SECRET  — bearer token for YOUR endpoint
+  HA_SIGNING_SECRET        — HouseAccount HMAC signing key (raw base64 string as bytes)
+  HA_APP_NAME              — HouseAccount app name (default: gauntlet)
+  RAILS_URL                — default http://localhost:3000
 
 Usage:
-  GAUNTLET_PRICING_SECRET=my-secret-key python3 integration_test.py
+  python3 integration_test.py   # reads from .env automatically
 """
 import base64
 import hashlib
@@ -44,11 +39,15 @@ if _env.exists():
 RAILS_URL  = os.environ.get("RAILS_URL", "http://localhost:3000")
 MY_SECRET  = os.environ.get("GAUNTLET_PRICING_SECRET", "")
 
-# HouseAccount staging — credentials from Claudio
-HA_BASE_URL     = "https://pro.houseparty.dev"
-HA_APP_NAME     = "gauntlet"
-# Key is the raw base64 string as bytes (NOT decoded) — confirmed by trial
-HA_SIGNING_SECRET = "Dq+pSVNf7DxSzQxxvRSeh0mk32e+V3m+KCTv9boGstI=".encode()
+# HouseAccount staging — all values loaded from .env
+HA_BASE_URL       = "https://pro.houseparty.dev"
+HA_APP_NAME       = os.environ.get("HA_APP_NAME", "gauntlet")
+# Raw base64 string as bytes (NOT decoded) — HouseAccount uses the base64 string itself as key
+_ha_secret = os.environ.get("HA_SIGNING_SECRET", "")
+if not _ha_secret:
+    print("ERROR: HA_SIGNING_SECRET not set. Add it to .env")
+    sys.exit(1)
+HA_SIGNING_SECRET = _ha_secret.encode()
 
 ENDPOINT = f"{RAILS_URL}/.netlify/functions/pricing-estimate"
 

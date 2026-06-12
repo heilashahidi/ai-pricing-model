@@ -37,10 +37,21 @@ CATEGORIES = [
     "Painting","Pest Control","Plumbing","Pool","Remodeling","Roofing",
 ]
 
-# Production verticals (for OOD confidence cap)
+# Production verticals (for OOD confidence cap).
+# The PRD lists 10 production slugs; the dataset uses title-case category names.
+# Mapping (dataset category → PRD slug(s)):
+#   Cleaning      → indoor-cleaning, exterior-cleaning
+#   Landscaping   → landscaping-lawn, irrigation
+#   Pest Control  → pest-control, tick-mosquito-treatment
+#   Electrical    → electrical
+#   Plumbing      → plumbing
+#   HVAC          → hvac
+#   Handyman      → handyman
+#   Exterior      → exterior-cleaning (exterior-specific jobs)
+# Jobs arriving with any other category string are treated as OOD.
 PRODUCTION_CATEGORIES = {
-    "Cleaning","Landscaping","Pest Control","Electrical","Plumbing",
-    "HVAC","Handyman","Exterior",
+    "Cleaning", "Landscaping", "Pest Control", "Electrical", "Plumbing",
+    "HVAC", "Handyman", "Exterior",
 }
 TRAINING_MEDIAN_INTERVAL = None  # set after loading data
 
@@ -435,13 +446,23 @@ def main():
 
     # Save JSON results for downstream use
     results = {
-        "baseline": baseline,
-        "cv_overall": cv_results,
-        "handyman_baseline": hm_baseline,
-        "handyman_model": hm_results,
-        "per_category": cat_results,
-        "top_features": [[n, float(i)] for n, i in top_features],
-        "training_median_interval": TRAINING_MEDIAN_INTERVAL,
+        "baseline":                  baseline,
+        "cv_overall":                cv_results,
+        "routed":                    route_results,   # the strategy that beats baseline
+        "handyman_baseline":         hm_baseline,
+        "handyman_model":            hm_results,
+        "handyman_blended":          hm_blend_results,
+        "per_category":              cat_results,
+        "top_features":              [[n, float(i)] for n, i in top_features],
+        "training_median_interval":  TRAINING_MEDIAN_INTERVAL,
+        "benchmark": {
+            "blended_baseline_mape":  round(baseline["MAPE"], 2),
+            "blended_routed_mape":    round(route_results["MAPE"], 2),
+            "blended_beats_baseline": route_results["MAPE"] < baseline["MAPE"],
+            "handyman_baseline_mape": round(hm_baseline["MAPE"], 2),
+            "handyman_model_mape":    round(hm_results["MAPE"], 2),
+            "handyman_beats_baseline": hm_results["MAPE"] < hm_baseline["MAPE"],
+        },
     }
     with open(RESULTS_OUT, "w") as f:
         json.dump(results, f, indent=2)

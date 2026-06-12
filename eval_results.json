@@ -25,6 +25,19 @@
     "Pinball50": 39.79,
     "Pinball90": 21.48
   },
+  "routed": {
+    "label": "Routed (baseline/model by category)",
+    "n": 411,
+    "MAPE": 11.41,
+    "MAE": 53.41,
+    "RMSE": 92.44,
+    "WAPE": 9.15,
+    "Bias": 2.64,
+    "Coverage": 92.0,
+    "Pinball10": 19.63,
+    "Pinball50": 26.71,
+    "Pinball90": 22.29
+  },
   "handyman_baseline": {
     "label": "Baseline (Handyman)",
     "n": 14,
@@ -50,6 +63,19 @@
     "Pinball10": 36.12,
     "Pinball50": 49.92,
     "Pinball90": 22.69
+  },
+  "handyman_blended": {
+    "label": "Model blended (Handyman)",
+    "n": 14,
+    "MAPE": 36.24,
+    "MAE": 111.3,
+    "RMSE": 167.67,
+    "WAPE": 42.52,
+    "Bias": 44.42,
+    "Coverage": 57.1,
+    "Pinball10": 35.57,
+    "Pinball50": 55.65,
+    "Pinball90": 23.26
   },
   "per_category": {
     "Appliance Repair": {
@@ -155,5 +181,13 @@
       0.05537554994225502
     ]
   ],
-  "training_median_interval": 212.28
+  "training_median_interval": 212.28,
+  "benchmark": {
+    "blended_baseline_mape": 11.56,
+    "blended_routed_mape": 11.41,
+    "blended_beats_baseline": true,
+    "handyman_baseline_mape": 48.44,
+    "handyman_model_mape": 31.38,
+    "handyman_beats_baseline": true
+  }
 }
