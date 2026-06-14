@@ -71,4 +71,4 @@ ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 
 # Railway injects PORT; Thruster forwards it to Puma
 EXPOSE 80
-CMD ["./bin/thrust", "./bin/rails", "server", "-b", "0.0.0.0"]
+CMD ["sh", "-c", "HTTP_PORT=${PORT:-80} ./bin/thrust ./bin/rails server -b 0.0.0.0"]
