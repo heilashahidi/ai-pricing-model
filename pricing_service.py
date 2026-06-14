@@ -5,7 +5,9 @@ Loads XGBoost models at startup, handles Haiku scope extraction + inference.
 Usage:
     ANTHROPIC_API_KEY=your_key python3 -m uvicorn pricing_service:app --port 8000
 """
+import asyncio
 import hashlib
+import hmac
 import json
 import logging
 import os
@@ -27,7 +29,8 @@ from typing import Optional
 import anthropic
 import joblib
 import numpy as np
-from fastapi import FastAPI, HTTPException
+from cachetools import LRUCache
+from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
@@ -60,15 +63,13 @@ EXTRACTION_DEFAULTS = {
     "labor_only": False, "task_count": 1,
     "complexity_tier": "medium", "has_area_measure": False,
 }
-COMPLEXITY_MAP = {"low": 0, "medium": 1, "high": 2}
-
 # ── App state ──────────────────────────────────────────────────────────────
 
 class State:
-    models: dict        = {}   # {0.1: XGBRegressor, 0.5: ..., 0.9: ...}
+    models: dict        = {}
     meta:   dict        = {}
     client: object      = None
-    cache:  dict        = {}   # {desc_hash: features_dict}
+    cache:  LRUCache    = LRUCache(maxsize=2048)
 
 state = State()
 
@@ -99,17 +100,23 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="HouseAccount Pricing Service", lifespan=lifespan)
 
 
+def _require_internal_key(x_internal_key: str = Header(default="")):
+    expected = os.environ.get("PRICING_SERVICE_INTERNAL_KEY", "")
+    if not expected or not hmac.compare_digest(x_internal_key, expected):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
 # ── Request / Response ─────────────────────────────────────────────────────
 
 class PricingRequest(BaseModel):
     job_id:             str
     service_category:   str
     zip_code:           str
-    job_description:    str
+    job_description:    str = Field(max_length=4000)
     service_subtype:    Optional[str]   = None
     deadline:           Optional[str]   = None
     booking_month:      Optional[str]   = None
-    original_estimate:  Optional[float] = None
+    original_estimate:  Optional[float] = Field(default=None, ge=1.0)
     original_estimate_lo: Optional[float] = None
     original_estimate_hi: Optional[float] = None
     job_status:         Optional[str]   = None
@@ -141,6 +148,7 @@ async def extract_scope(description: str) -> dict:
                 tool_choice={"type": "tool", "name": "extract_scope"},
                 messages=[{"role": "user",
                            "content": f"Extract scope features:\n\n{description}"}],
+                timeout=5.0,
             )
             for block in resp.content:
                 if block.type == "tool_use":
@@ -149,11 +157,11 @@ async def extract_scope(description: str) -> dict:
         except Exception as e:
             if attempt == 0:
                 log.warning(f"Haiku extraction attempt 1 failed: {e}, retrying...")
+                await asyncio.sleep(1.0)
             else:
                 log.error(f"Haiku extraction failed after 2 attempts: {e}")
 
     log.warning("Using extraction defaults.")
-    state.cache[key] = EXTRACTION_DEFAULTS
     return EXTRACTION_DEFAULTS
 
 
@@ -162,12 +170,12 @@ async def extract_scope(description: str) -> dict:
 def build_feature_vector(req: PricingRequest, scope: dict) -> np.ndarray:
     meta = state.meta
     deadline_map  = meta["deadline_map"]
-    complexity_map = COMPLEXITY_MAP
+    complexity_map = meta["complexity_map"]
     categories     = meta["categories"]
 
     labor_only  = 1 if scope.get("labor_only")      else 0
     has_area    = 1 if scope.get("has_area_measure") else 0
-    task_count  = int(scope.get("task_count", 1))
+    task_count  = min(int(scope.get("task_count", 1)), 20)
     complexity  = complexity_map.get(scope.get("complexity_tier","medium"), 1)
     deadline    = deadline_map.get(req.deadline or "", 0)
 
@@ -220,8 +228,8 @@ def route_predict(req: PricingRequest, X: np.ndarray) -> tuple[float, float, flo
 
     if use_baseline:
         # Trust original_estimate directly for well-priced categories
-        lo  = req.original_estimate_lo  or req.original_estimate * 0.8
-        hi  = req.original_estimate_hi  or req.original_estimate * 1.2
+        lo  = req.original_estimate_lo  if req.original_estimate_lo  is not None else req.original_estimate * 0.8
+        hi  = req.original_estimate_hi  if req.original_estimate_hi  is not None else req.original_estimate * 1.2
         mid = req.original_estimate
         return fix_intervals(lo, mid, hi)
 
@@ -234,7 +242,7 @@ def route_predict(req: PricingRequest, X: np.ndarray) -> tuple[float, float, flo
 
 # ── Endpoint ───────────────────────────────────────────────────────────────
 
-@app.post("/predict", response_model=PricingResponse)
+@app.post("/predict", response_model=PricingResponse, dependencies=[Depends(_require_internal_key)])
 async def predict(req: PricingRequest):
     scope = await extract_scope(req.job_description)
     X     = build_feature_vector(req, scope)

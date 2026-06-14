@@ -58,7 +58,7 @@ Two services deploy from this single repository.
 | `RAILS_MASTER_KEY` | Contents of `pricing_api/config/master.key` (run `cat pricing_api/config/master.key` locally) |
 | `RAILS_ENV` | `production` |
 | `PRICING_SERVICE_URL` | `http://pricing-ml.railway.internal:8000/predict` |
-| `HA_SIGNING_SECRET` | `Dq+pSVNf7DxSzQxxvRSeh0mk32e+V3m+KCTv9boGstI=` |
+| `HA_SIGNING_SECRET` | `<your-HA_SIGNING_SECRET>` |
 | `HA_APP_NAME` | `gauntlet` |
 
 5. Click **Deploy**
@@ -120,6 +120,7 @@ Railway's Wireguard-based private network is zero-configuration — no VPC or fi
 | Variable | Required | Notes |
 |----------|----------|-------|
 | `ANTHROPIC_API_KEY` | Yes | Claude Haiku for scope extraction |
+| `PRICING_SERVICE_INTERNAL_KEY` | Yes | Shared secret with pricing-api (must match) |
 | `PORT` | Auto-injected | Railway sets this; FastAPI binds to it |
 
 ### pricing-api (Rails)
@@ -127,6 +128,7 @@ Railway's Wireguard-based private network is zero-configuration — no VPC or fi
 | Variable | Required | Notes |
 |----------|----------|-------|
 | `GAUNTLET_PRICING_SECRET` | Yes | Bearer token for API auth |
+| `PRICING_SERVICE_INTERNAL_KEY` | Yes | Shared secret with pricing-ml (must match) |
 | `RAILS_MASTER_KEY` | Yes | From `config/master.key` — never commit this |
 | `RAILS_ENV` | Yes | Set to `production` |
 | `PRICING_SERVICE_URL` | Yes | `http://pricing-ml.railway.internal:8000/predict` |

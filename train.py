@@ -331,12 +331,8 @@ def main():
         lo, mid, hi = predict(m, X[[hm_i]])
         hm_cf_lo[pos]  = max(lo[0],  0.1) * hm_baseline_mid[pos]
         hm_cf_mid[pos] = max(mid[0], 0.1) * hm_baseline_mid[pos]
-        hm_cf_hi[pos]  = max(hi[0],  0.1) * hm_baseline_hi[pos]
+        hm_cf_hi[pos]  = max(hi[0],  0.1) * hm_baseline_mid[pos]
     hm_cf_results = all_metrics(hm_y, hm_cf_mid, hm_cf_lo, hm_cf_hi, "Correction-factor (Handyman LOO)")
-
-    joblib.dump(cf_models[0.50], os.path.join(MODELS_DIR, "xgb_cf_q050.joblib"))
-    joblib.dump(cf_models[0.05], os.path.join(MODELS_DIR, "xgb_cf_q005.joblib"))
-    joblib.dump(cf_models[0.95], os.path.join(MODELS_DIR, "xgb_cf_q095.joblib"))
 
     # ── Routing strategy ────────────────────────────────────────────────────
     # Use original_estimate directly for well-priced categories.

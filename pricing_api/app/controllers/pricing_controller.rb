@@ -45,13 +45,14 @@ class PricingController < ApplicationController
     http.open_timeout = PRICING_SERVICE_TIMEOUT
     http.read_timeout = PRICING_SERVICE_TIMEOUT
 
-    req           = Net::HTTP::Post.new(uri.path, "Content-Type" => "application/json")
+    req           = Net::HTTP::Post.new(uri.path, "Content-Type" => "application/json",
+                                                  "X-Internal-Key" => ENV.fetch("PRICING_SERVICE_INTERNAL_KEY", ""))
     req.body      = body.to_json
     response      = http.request(req)
     parsed        = JSON.parse(response.body)
 
     { status: response.code.to_i, body: parsed }
-  rescue Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNREFUSED => e
+  rescue Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNREFUSED, Errno::ETIMEDOUT, SocketError, EOFError => e
     Rails.logger.error("Pricing service unavailable: #{e.class} #{e.message}")
     { status: 500, body: { error: "Pricing service unavailable" } }
   rescue JSON::ParserError => e

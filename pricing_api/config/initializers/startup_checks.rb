@@ -8,7 +8,7 @@ Rails.application.config.after_initialize do
     begin
       pricing_url = ENV.fetch("PRICING_SERVICE_URL", "http://localhost:8001/predict")
       uri = URI(pricing_url.sub("/predict", "/health"))
-      Net::HTTP.get(uri)
+      Net::HTTP.start(uri.host, uri.port, open_timeout: 5, read_timeout: 5) { |h| h.get(uri.path) }
       Rails.logger.info("Pricing service warm-up: OK")
     rescue => e
       Rails.logger.warn("Pricing service warm-up failed (will retry on first request): #{e.message}")

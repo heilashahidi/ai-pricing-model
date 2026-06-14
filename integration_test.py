@@ -256,7 +256,7 @@ for case in CASES:
 
     # Midpoint correction check
     if case.get("expect_midpoint_below") and body["estimate_midpoint"] >= case["expect_midpoint_below"]:
-        notes.append(f"midpoint ${body['estimate_midpoint']:.0f} >= ${case['expect_midpoint_below']:.0f} (model may not be correcting)")
+        ok = False; notes.append(f"midpoint ${body['estimate_midpoint']:.0f} >= ${case['expect_midpoint_below']:.0f} (model not correcting)")
 
     # Exact passthrough for well-priced categories
     if case.get("expect_midpoint_exact") and abs(body["estimate_midpoint"] - case["expect_midpoint_exact"]) > 0.01:
