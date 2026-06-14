@@ -217,9 +217,9 @@ The dominant latency source is the Claude Haiku scope extraction call (~300–80
 
 | Metric | Target | Observed |
 |--------|--------|----------|
-| Cold-start | < 2000ms | run to measure |
-| Warm avg (5 calls) | < 2000ms | run to measure |
-| Warm max (5 calls) | < 2000ms | run to measure |
+| Cold-start | < 2000ms | 253ms |
+| Warm avg (5 calls) | < 2000ms | 234ms |
+| Warm max (5 calls) | < 2000ms | 269ms |
 
 Section 3 of `integration_test.py` measures and asserts all three against the live `RAILS_URL`.
 
