@@ -3,337 +3,548 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HouseAccount AI Pricing</title>
+  <title>HouseAccount · AI Pricing</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --brand:    #1a1a2e;
-      --accent:   #4f46e5;
-      --accent-h: #4338ca;
-      --success:  #059669;
-      --warn:     #d97706;
-      --danger:   #dc2626;
-      --border:   #e5e7eb;
-      --muted:    #6b7280;
-      --bg:       #f9fafb;
-      --card:     #ffffff;
-      --radius:   10px;
+      --bg:          #0a0a0f;
+      --surface:     #111118;
+      --surface-2:   #18181f;
+      --surface-3:   #1e1e28;
+      --border:      #2a2a38;
+      --border-soft: #1f1f2a;
+      --accent:      #6366f1;
+      --accent-dim:  rgba(99,102,241,.12);
+      --accent-glow: rgba(99,102,241,.25);
+      --text:        #e8e8f0;
+      --text-2:      #9898b0;
+      --text-3:      #5c5c78;
+      --success:     #22c55e;
+      --success-dim: rgba(34,197,94,.12);
+      --warn:        #f59e0b;
+      --warn-dim:    rgba(245,158,11,.12);
+      --danger:      #ef4444;
+      --danger-dim:  rgba(239,68,68,.12);
+      --radius:      12px;
+      --radius-sm:   8px;
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
       background: var(--bg);
-      color: #111827;
+      color: var(--text);
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
 
-    header {
-      background: var(--brand);
-      color: white;
+    /* ── Nav ── */
+    nav {
+      border-bottom: 1px solid var(--border-soft);
       padding: 0 2rem;
-      height: 56px;
+      height: 52px;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: rgba(10,10,15,.85);
+      backdrop-filter: blur(12px);
+      z-index: 10;
     }
-    header .logo { font-weight: 700; font-size: 1rem; letter-spacing: .02em; }
-    header .badge {
-      font-size: .7rem;
-      background: rgba(255,255,255,.15);
-      padding: 3px 10px;
-      border-radius: 20px;
-      letter-spacing: .05em;
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: .625rem;
+      font-size: .875rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -.01em;
     }
-
-    .layout {
-      max-width: 1080px;
-      margin: 2rem auto;
-      padding: 0 1.5rem;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
-      align-items: start;
+    .nav-logo-icon {
+      width: 26px;
+      height: 26px;
+      background: var(--accent);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    @media (max-width: 700px) { .layout { grid-template-columns: 1fr; } }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.75rem;
-    }
-    .card-title {
-      font-size: .75rem;
+    .nav-logo-icon svg { display: block; }
+    .nav-pill {
+      font-size: .65rem;
       font-weight: 600;
       letter-spacing: .08em;
       text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 1.25rem;
+      color: var(--accent);
+      background: var(--accent-dim);
+      border: 1px solid rgba(99,102,241,.25);
+      padding: 3px 9px;
+      border-radius: 20px;
     }
 
+    /* ── Layout ── */
+    .page {
+      max-width: 1040px;
+      margin: 2.5rem auto;
+      padding: 0 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      align-items: start;
+    }
+    @media (max-width: 680px) {
+      .page { grid-template-columns: 1fr; margin: 1.5rem auto; }
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 1.25rem 1.5rem 0;
+      margin-bottom: 1.25rem;
+    }
+    .card-label {
+      font-size: .65rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-3);
+    }
+    .card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-top: .2rem;
+      letter-spacing: -.01em;
+    }
+    .card-body { padding: 0 1.5rem 1.5rem; }
+
+    /* ── Form fields ── */
+    .field { margin-bottom: .875rem; }
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem;
+    }
     label {
       display: block;
-      font-size: .8rem;
+      font-size: .75rem;
       font-weight: 500;
-      color: #374151;
-      margin-bottom: .35rem;
+      color: var(--text-2);
+      margin-bottom: .375rem;
+      letter-spacing: .005em;
     }
-    .field { margin-bottom: 1rem; }
+    label .opt {
+      font-weight: 400;
+      color: var(--text-3);
+    }
     input, select, textarea {
       width: 100%;
-      padding: .6rem .75rem;
+      padding: .625rem .875rem;
+      background: var(--surface-2);
       border: 1px solid var(--border);
-      border-radius: 7px;
+      border-radius: var(--radius-sm);
       font-size: .875rem;
-      color: #111827;
-      background: #fff;
-      transition: border-color .15s;
+      color: var(--text);
       font-family: inherit;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+      appearance: none;
+    }
+    input::placeholder, textarea::placeholder { color: var(--text-3); }
+    input:hover:not(:focus), select:hover:not(:focus), textarea:hover:not(:focus) {
+      border-color: #3a3a4c;
     }
     input:focus, select:focus, textarea:focus {
       outline: none;
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(79,70,229,.08);
+      background: var(--surface-3);
+      box-shadow: 0 0 0 3px var(--accent-glow);
     }
-    textarea { resize: vertical; min-height: 90px; }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235c5c78' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right .875rem center;
+      padding-right: 2.25rem;
+      cursor: pointer;
+    }
+    select option { background: #1e1e28; }
+    textarea { resize: vertical; min-height: 88px; line-height: 1.5; }
+    input[readonly] {
+      color: var(--text-3);
+      cursor: default;
+    }
+    input[readonly]:hover, input[readonly]:focus {
+      border-color: var(--border);
+      background: var(--surface-2);
+      box-shadow: none;
+    }
 
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
-
-    button {
+    /* ── Submit button ── */
+    .btn {
       width: 100%;
       padding: .75rem 1.5rem;
       background: var(--accent);
-      color: white;
+      color: #fff;
       border: none;
-      border-radius: 7px;
-      font-size: .9rem;
+      border-radius: var(--radius-sm);
+      font-size: .875rem;
       font-weight: 600;
+      letter-spacing: -.005em;
       cursor: pointer;
-      transition: background .15s, transform .1s;
-      margin-top: .5rem;
+      transition: opacity .15s, transform .1s, box-shadow .15s;
+      margin-top: .25rem;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
     }
-    button:hover:not(:disabled) { background: var(--accent-h); }
-    button:active:not(:disabled) { transform: scale(.99); }
-    button:disabled { opacity: .55; cursor: default; }
+    .btn:hover:not(:disabled) {
+      opacity: .9;
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+    .btn:active:not(:disabled) { transform: scale(.99); }
+    .btn:disabled { opacity: .4; cursor: default; }
 
-    /* ── Result panel ── */
-    .result-empty {
+    /* ── Result: empty state ── */
+    .empty-state {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: .75rem;
-      padding: 3rem 1rem;
-      color: var(--muted);
+      gap: .875rem;
+      padding: 3.5rem 1.5rem;
       text-align: center;
     }
-    .result-empty svg { opacity: .35; }
-    .result-empty p { font-size: .85rem; }
-
-    .estimate-range {
+    .empty-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
       display: flex;
       align-items: center;
-      gap: .5rem;
-      margin-bottom: 1.5rem;
+      justify-content: center;
     }
-    .bound {
-      flex: 1;
-      text-align: center;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: .75rem .5rem;
+    .empty-icon svg { opacity: .4; }
+    .empty-headline {
+      font-size: .9rem;
+      font-weight: 500;
+      color: var(--text-2);
     }
-    .bound .label { font-size: .65rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: .2rem; }
-    .bound .val   { font-size: 1.25rem; font-weight: 700; }
+    .empty-sub {
+      font-size: .8rem;
+      color: var(--text-3);
+      line-height: 1.5;
+      max-width: 220px;
+    }
 
-    .midpoint-card {
-      background: var(--accent);
-      color: white;
-      border-radius: 10px;
-      padding: 1.25rem;
-      text-align: center;
-      margin-bottom: 1.25rem;
-    }
-    .midpoint-card .label { font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; opacity: .8; }
-    .midpoint-card .price { font-size: 2.5rem; font-weight: 800; line-height: 1; margin: .35rem 0 0; }
+    /* ── Result: price display ── */
+    .result-content { padding: 0 1.5rem 1.5rem; }
 
-    .conf-row {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 1.25rem;
-    }
-    .conf-bar-wrap {
-      flex: 1;
-      background: var(--bg);
-      border-radius: 100px;
-      height: 10px;
-      border: 1px solid var(--border);
+    .mid-block {
+      background: linear-gradient(135deg, rgba(99,102,241,.15) 0%, rgba(99,102,241,.05) 100%);
+      border: 1px solid rgba(99,102,241,.3);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      text-align: center;
+      margin-bottom: 1rem;
+      position: relative;
       overflow: hidden;
     }
-    .conf-bar {
-      height: 100%;
-      border-radius: 100px;
-      transition: width .6s ease;
+    .mid-block::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(99,102,241,.15) 0%, transparent 70%);
+      pointer-events: none;
     }
-    .conf-label {
-      font-size: .85rem;
+    .mid-label {
+      font-size: .65rem;
       font-weight: 700;
-      min-width: 48px;
-      text-align: right;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: .5rem;
     }
-    .conf-text {
-      font-size: .78rem;
-      color: var(--muted);
-      margin-bottom: 1rem;
-      padding: .5rem .75rem;
-      background: var(--bg);
-      border-radius: 7px;
-      border: 1px solid var(--border);
+    .mid-price {
+      font-size: 3rem;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -.04em;
+      line-height: 1;
+    }
+    .mid-sub {
+      font-size: .75rem;
+      color: var(--text-3);
+      margin-top: .5rem;
     }
 
-    .meta-row {
+    .range-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: .5rem;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .range-bound {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: .75rem;
+      text-align: center;
+    }
+    .range-bound-label {
+      font-size: .6rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: .25rem;
+    }
+    .range-bound-val {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-2);
+      letter-spacing: -.02em;
+    }
+    .range-sep {
+      color: var(--text-3);
+      font-size: .875rem;
+      padding: 0 .125rem;
+    }
+
+    /* ── Confidence ── */
+    .conf-section { margin-bottom: 1rem; }
+    .conf-header {
       display: flex;
       justify-content: space-between;
-      font-size: .75rem;
-      color: var(--muted);
-      border-top: 1px solid var(--border);
-      padding-top: .75rem;
+      align-items: center;
+      margin-bottom: .5rem;
     }
-    .meta-row strong { color: #374151; }
+    .conf-heading {
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--text-2);
+    }
+    .conf-pct {
+      font-size: .75rem;
+      font-weight: 700;
+    }
+    .conf-track {
+      height: 6px;
+      background: var(--surface-3);
+      border-radius: 100px;
+      overflow: hidden;
+      border: 1px solid var(--border-soft);
+    }
+    .conf-fill {
+      height: 100%;
+      border-radius: 100px;
+      transition: width .7s cubic-bezier(.4,0,.2,1);
+    }
+    .conf-desc {
+      font-size: .75rem;
+      color: var(--text-3);
+      margin-top: .625rem;
+      line-height: 1.5;
+      padding: .625rem .75rem;
+      background: var(--surface-2);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-soft);
+    }
 
-    .badge-ood {
-      display: inline-block;
+    /* ── OOD badge ── */
+    .ood-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .375rem;
       font-size: .7rem;
       font-weight: 600;
-      padding: 3px 8px;
-      border-radius: 4px;
-      margin-bottom: .75rem;
+      letter-spacing: .02em;
+      padding: .375rem .75rem;
+      border-radius: 6px;
+      margin-bottom: .875rem;
+      background: var(--danger-dim);
+      color: var(--danger);
+      border: 1px solid rgba(239,68,68,.2);
     }
 
+    /* ── Meta footer ── */
+    .meta-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid var(--border-soft);
+      padding-top: .875rem;
+      margin-top: .25rem;
+    }
+    .meta-item {
+      font-size: .7rem;
+      color: var(--text-3);
+    }
+    .meta-item strong {
+      color: var(--text-2);
+      font-weight: 500;
+    }
+
+    /* ── Error ── */
+    .error-box {
+      background: var(--danger-dim);
+      border: 1px solid rgba(239,68,68,.2);
+      border-radius: var(--radius-sm);
+      padding: .75rem 1rem;
+      color: var(--danger);
+      font-size: .8rem;
+      line-height: 1.5;
+    }
+
+    /* ── Spinner ── */
     .spinner {
-      display: inline-block;
-      width: 18px; height: 18px;
-      border: 2px solid rgba(255,255,255,.4);
-      border-top-color: white;
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,.25);
+      border-top-color: #fff;
       border-radius: 50%;
-      animation: spin .7s linear infinite;
-      vertical-align: middle;
-      margin-right: .4rem;
+      animation: spin .65s linear infinite;
+      flex-shrink: 0;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .error-box {
-      background: #fef2f2;
-      border: 1px solid #fecaca;
-      border-radius: 8px;
-      padding: .75rem 1rem;
-      color: var(--danger);
-      font-size: .85rem;
+    /* ── Divider ── */
+    .card-divider {
+      height: 1px;
+      background: var(--border-soft);
+      margin: 0 1.5rem 1.25rem;
     }
   </style>
 </head>
 <body>
 
-<header>
-  <span class="logo">HouseAccount · AI Pricing</span>
-  <span class="badge">DEMO</span>
-</header>
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-icon">
+      <svg width="14" height="14" fill="none" viewBox="0 0 14 14">
+        <path d="M7 1L13 4.5V9.5L7 13L1 9.5V4.5L7 1Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M7 5v4M5 7h4" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    HouseAccount
+  </div>
+  <span class="nav-pill">Demo</span>
+</nav>
 
-<div class="layout">
+<div class="page">
 
-  <!-- Form -->
+  <!-- Form card -->
   <div class="card">
-    <div class="card-title">Booking Details</div>
-
-    <div class="field">
-      <label for="service_category">Service Category *</label>
-      <select id="service_category">
-        <option value="">Select a category…</option>
-        <option value="Appliance Repair">Appliance Repair</option>
-        <option value="Auto">Auto</option>
-        <option value="Chimney">Chimney</option>
-        <option value="Cleaning">Cleaning</option>
-        <option value="Electrical">Electrical</option>
-        <option value="Exterior">Exterior</option>
-        <option value="Flooring">Flooring</option>
-        <option value="General Contractor">General Contractor</option>
-        <option value="Handyman" selected>Handyman</option>
-        <option value="HVAC">HVAC</option>
-        <option value="Landscaping">Landscaping</option>
-        <option value="Moving">Moving</option>
-        <option value="Painting">Painting</option>
-        <option value="Pest Control">Pest Control</option>
-        <option value="Plumbing">Plumbing</option>
-        <option value="Pool">Pool</option>
-        <option value="Remodeling">Remodeling</option>
-        <option value="Roofing">Roofing</option>
-      </select>
+    <div class="card-header">
+      <div class="card-label">Booking Details</div>
+      <div class="card-title">Request a Price Estimate</div>
     </div>
+    <div class="card-divider"></div>
+    <div class="card-body">
 
-    <div class="field">
-      <label for="job_description">Job Description *</label>
-      <textarea id="job_description" placeholder="Describe the job in detail. Include what the homeowner supplies, how many items, scope…">Install 3 supplied exterior shutters (we supply all shutters and hardware)</textarea>
-    </div>
-
-    <div class="row">
       <div class="field">
-        <label for="zip_code">ZIP Code *</label>
-        <input type="text" id="zip_code" value="33484" maxlength="5" placeholder="e.g. 78704">
-      </div>
-      <div class="field">
-        <label for="deadline">Deadline</label>
-        <select id="deadline">
-          <option value="">No preference</option>
-          <option value="As soon as possible">As soon as possible</option>
-          <option value="Within 1 week">Within 1 week</option>
-          <option value="Within 1-2 weeks" selected>Within 1-2 weeks</option>
-          <option value="Within 1 month">Within 1 month</option>
-          <option value="I'm flexible">I'm flexible</option>
+        <label for="service_category">Service Category</label>
+        <select id="service_category">
+          <option value="">Select a category…</option>
+          <option value="Appliance Repair">Appliance Repair</option>
+          <option value="Auto">Auto</option>
+          <option value="Chimney">Chimney</option>
+          <option value="Cleaning">Cleaning</option>
+          <option value="Electrical">Electrical</option>
+          <option value="Exterior">Exterior</option>
+          <option value="Flooring">Flooring</option>
+          <option value="General Contractor">General Contractor</option>
+          <option value="Handyman" selected>Handyman</option>
+          <option value="HVAC">HVAC</option>
+          <option value="Landscaping">Landscaping</option>
+          <option value="Moving">Moving</option>
+          <option value="Painting">Painting</option>
+          <option value="Pest Control">Pest Control</option>
+          <option value="Plumbing">Plumbing</option>
+          <option value="Pool">Pool</option>
+          <option value="Remodeling">Remodeling</option>
+          <option value="Roofing">Roofing</option>
         </select>
       </div>
-    </div>
 
-    <div class="field">
-      <label for="service_subtype">Service Subtype <span style="color:var(--muted)">(optional)</span></label>
-      <input type="text" id="service_subtype" placeholder="e.g. Shutter Installation">
-    </div>
-
-    <div class="row">
       <div class="field">
-        <label for="original_estimate">Current Estimate ($) <span style="color:var(--muted)">(optional)</span></label>
-        <input type="number" id="original_estimate" value="750" placeholder="Baseline estimate">
+        <label for="job_description">Job Description</label>
+        <textarea id="job_description" placeholder="Describe the job in detail — scope, materials supplied, number of items…">Install 3 supplied exterior shutters (we supply all shutters and hardware)</textarea>
       </div>
-      <div class="field">
-        <label for="job_id">Job ID</label>
-        <input type="text" id="job_id" placeholder="auto-generated" readonly style="background:#f3f4f6;color:var(--muted)">
-      </div>
-    </div>
 
-    <button id="submit-btn" onclick="getPricing()">
-      Get Price Estimate
-    </button>
+      <div class="field-row">
+        <div class="field">
+          <label for="zip_code">ZIP Code</label>
+          <input type="text" id="zip_code" value="33484" maxlength="5" placeholder="e.g. 78704">
+        </div>
+        <div class="field">
+          <label for="deadline">Deadline <span class="opt">(optional)</span></label>
+          <select id="deadline">
+            <option value="">No preference</option>
+            <option value="As soon as possible">As soon as possible</option>
+            <option value="Within 1 week">Within 1 week</option>
+            <option value="Within 1-2 weeks" selected>Within 1–2 weeks</option>
+            <option value="Within 1 month">Within 1 month</option>
+            <option value="I'm flexible">I'm flexible</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="service_subtype">Service Subtype <span class="opt">(optional)</span></label>
+        <input type="text" id="service_subtype" placeholder="e.g. Shutter Installation">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="original_estimate">Current Estimate ($) <span class="opt">(optional)</span></label>
+          <input type="number" id="original_estimate" value="750" placeholder="Baseline estimate">
+        </div>
+        <div class="field">
+          <label for="job_id">Job ID</label>
+          <input type="text" id="job_id" placeholder="auto-generated" readonly>
+        </div>
+      </div>
+
+      <button class="btn" id="submit-btn" onclick="getPricing()">
+        Get Price Estimate
+      </button>
+
+    </div>
   </div>
 
-  <!-- Result -->
+  <!-- Result card -->
   <div class="card" id="result-panel">
-    <div class="card-title">Price Estimate</div>
-    <div class="result-empty" id="empty-state">
-      <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-      </svg>
-      <p>Fill in the booking details and click<br><strong>Get Price Estimate</strong></p>
+    <div class="card-header">
+      <div class="card-label">AI Estimate</div>
+      <div class="card-title">Price Range</div>
     </div>
-    <div id="result-content" style="display:none"></div>
+    <div class="card-divider"></div>
+
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">
+        <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+        </svg>
+      </div>
+      <div class="empty-headline">No estimate yet</div>
+      <div class="empty-sub">Fill out the form and click Get Price Estimate to see results.</div>
+    </div>
+
+    <div class="result-content" id="result-content" style="display:none"></div>
   </div>
 
 </div>
 
 <script>
-  // Auto-generate a job ID on load
   document.getElementById('job_id').value = 'demo-' + Math.random().toString(36).slice(2, 10);
 
   const ENDPOINT = '/.netlify/functions/pricing-estimate';
@@ -350,13 +561,13 @@
   }
 
   function confText(c, category) {
-    const OOD_CATS = ['Auto','Chimney','Flooring','General Contractor','Moving','Painting','Pool','Remodeling','Roofing','Appliance Repair'];
+    const OOD = ['Auto','Chimney','Flooring','General Contractor','Moving','Painting','Pool','Remodeling','Roofing','Appliance Repair'];
     if (c < 0.5) {
-      if (OOD_CATS.includes(category)) return '⚠️ Outside production verticals — low confidence estimate. Route for manual review.';
-      return '⚠️ Out-of-distribution input (price range or interval width). Handle with caution.';
+      if (OOD.includes(category)) return 'Outside production verticals — low confidence estimate. Route for manual review.';
+      return 'Out-of-distribution input (price range or interval width). Handle with caution.';
     }
-    if (c >= 0.75) return '✓ High confidence. Homeowners typically book without shopping the market at this level.';
-    return '○ Moderate confidence. Provider may verify scope before accepting.';
+    if (c >= 0.75) return 'High confidence. Homeowners typically book without shopping the market at this level.';
+    return 'Moderate confidence. Provider may verify scope before accepting.';
   }
 
   async function getPricing() {
@@ -404,53 +615,56 @@
         return;
       }
 
-      const lo   = data.estimate_lo;
-      const hi   = data.estimate_hi;
-      const mid  = data.estimate_midpoint;
-      const conf = data.confidence;
+      const lo    = data.estimate_lo;
+      const hi    = data.estimate_hi;
+      const mid   = data.estimate_midpoint;
+      const conf  = data.confidence;
       const color = confColor(conf);
       const pct   = Math.round(conf * 100);
       const ood   = conf < 0.5;
 
       document.getElementById('result-content').innerHTML = `
-        ${ood ? `<div class="badge-ood" style="background:#fef2f2;color:var(--danger);border:1px solid #fecaca">Out of distribution</div>` : ''}
+        ${ood ? `<div class="ood-badge">
+          <svg width="12" height="12" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M8 5v4m0 2.5v.5"/><circle cx="8" cy="8" r="6.5"/></svg>
+          Out of distribution
+        </div>` : ''}
 
-        <div class="midpoint-card">
-          <div class="label">Point Estimate</div>
-          <div class="price">${fmt(mid)}</div>
+        <div class="mid-block">
+          <div class="mid-label">Point Estimate</div>
+          <div class="mid-price">${fmt(mid)}</div>
+          <div class="mid-sub">Midpoint of predicted range</div>
         </div>
 
-        <div class="estimate-range">
-          <div class="bound">
-            <div class="label">Low</div>
-            <div class="val" style="color:var(--muted)">${fmt(lo)}</div>
+        <div class="range-row">
+          <div class="range-bound">
+            <div class="range-bound-label">Low</div>
+            <div class="range-bound-val">${fmt(lo)}</div>
           </div>
-          <div style="color:var(--border);font-size:1.2rem">—</div>
-          <div class="bound">
-            <div class="label">High</div>
-            <div class="val" style="color:var(--muted)">${fmt(hi)}</div>
+          <div class="range-sep">→</div>
+          <div class="range-bound">
+            <div class="range-bound-label">High</div>
+            <div class="range-bound-val">${fmt(hi)}</div>
           </div>
         </div>
 
-        <div class="conf-row">
-          <span style="font-size:.8rem;font-weight:500;color:#374151">Confidence</span>
-          <div class="conf-bar-wrap">
-            <div class="conf-bar" style="width:${pct}%;background:${color}"></div>
+        <div class="conf-section">
+          <div class="conf-header">
+            <span class="conf-heading">Confidence</span>
+            <span class="conf-pct" style="color:${color}">${pct}%</span>
           </div>
-          <span class="conf-label" style="color:${color}">${pct}%</span>
+          <div class="conf-track">
+            <div class="conf-fill" style="width:${pct}%;background:${color}"></div>
+          </div>
+          <div class="conf-desc">${confText(conf, category)}</div>
         </div>
 
-        <div class="conf-text">${confText(conf, category)}</div>
-
-        <div class="meta-row">
-          <span>Model <strong>${data.model_version}</strong></span>
-          <span>Job <strong>${data.job_id}</strong></span>
+        <div class="meta-bar">
+          <span class="meta-item">Model <strong>${data.model_version}</strong></span>
+          <span class="meta-item">Job <strong>${data.job_id}</strong></span>
         </div>
       `;
 
       document.getElementById('result-content').style.display = 'block';
-
-      // Rotate job ID for next request
       document.getElementById('job_id').value = 'demo-' + Math.random().toString(36).slice(2, 10);
 
     } catch (err) {
@@ -463,7 +677,6 @@
     }
   }
 
-  // Allow Enter in single-line inputs to submit
   document.querySelectorAll('input').forEach(el =>
     el.addEventListener('keydown', e => { if (e.key === 'Enter') getPricing(); })
   );
