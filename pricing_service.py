@@ -29,9 +29,33 @@ from typing import Optional
 import anthropic
 import joblib
 import numpy as np
+import pgeocode
 from cachetools import LRUCache
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
+
+# 2023 ACS 1-year estimates — same source as enrich_zip.py
+_STATE_INCOME = {
+    "Maryland": 101_710, "New Jersey": 101_050, "Massachusetts": 98_700,
+    "Hawaii": 97_600, "Connecticut": 91_400, "California": 91_100,
+    "Washington": 90_300, "Colorado": 87_900, "Virginia": 87_600,
+    "Minnesota": 85_700, "New Hampshire": 84_900, "Utah": 84_800,
+    "Alaska": 83_000, "New York": 80_900, "Illinois": 78_000,
+    "Oregon": 77_100, "Rhode Island": 76_400, "Delaware": 76_200,
+    "Wisconsin": 74_500, "Georgia": 73_600, "Arizona": 72_600,
+    "Nevada": 72_400, "Texas": 72_300, "North Carolina": 71_500,
+    "Florida": 70_900, "Pennsylvania": 70_600, "Michigan": 70_300,
+    "Idaho": 70_100, "Ohio": 68_700, "Indiana": 68_400,
+    "Tennessee": 66_600, "Montana": 66_000, "South Carolina": 65_300,
+    "Vermont": 65_100, "Iowa": 65_100, "Nebraska": 65_000,
+    "Missouri": 64_800, "Kansas": 64_600, "Wyoming": 64_200,
+    "North Dakota": 63_400, "South Dakota": 62_900, "Maine": 62_900,
+    "Oklahoma": 62_200, "Alabama": 59_600, "Kentucky": 59_300,
+    "Louisiana": 58_300, "New Mexico": 58_200, "Arkansas": 57_600,
+    "West Virginia": 55_900, "Mississippi": 53_600,
+    "District of Columbia": 101_700, "Puerto Rico": 24_000,
+    "US": 75_149,
+}
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s  %(message)s")
 log = logging.getLogger(__name__)
@@ -70,6 +94,7 @@ class State:
     meta:   dict        = {}
     client: object      = None
     cache:  LRUCache    = LRUCache(maxsize=2048)
+    nomi:   object      = None
 
 state = State()
 
@@ -86,6 +111,11 @@ async def lifespan(app: FastAPI):
     with open(META_PATH) as f:
         state.meta = json.load(f)
     log.info(f"Models loaded. Trained on {state.meta['n_train']} rows.")
+
+    # pgeocode for ZIP→state income lookup (Bug 2 fix)
+    log.info("Loading pgeocode data...")
+    state.nomi = pgeocode.Nominatim("us")
+    log.info("pgeocode ready.")
 
     # Anthropic client
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -167,6 +197,18 @@ async def extract_scope(description: str) -> dict:
 
 # ── Feature builder ────────────────────────────────────────────────────────
 
+def _zip_income(zip_code: str) -> float:
+    """ZIP → normalised state median income. Falls back to national median."""
+    try:
+        row        = state.nomi.query_postal_code(zip_code)
+        state_name = row.get("state_name") if hasattr(row, "get") else row["state_name"]
+        if str(state_name) != "nan":
+            return _STATE_INCOME.get(str(state_name), _STATE_INCOME["US"]) / 100_000
+    except Exception:
+        pass
+    return _STATE_INCOME["US"] / 100_000
+
+
 def build_feature_vector(req: PricingRequest, scope: dict) -> np.ndarray:
     meta = state.meta
     deadline_map  = meta["deadline_map"]
@@ -179,11 +221,16 @@ def build_feature_vector(req: PricingRequest, scope: dict) -> np.ndarray:
     complexity  = complexity_map.get(scope.get("complexity_tier","medium"), 1)
     deadline    = deadline_map.get(req.deadline or "", 0)
 
-    # State median income — use national median as default (we don't run pgeocode at inference)
-    # For production: preload ZIP→income dict at startup. For Gauntlet: national median is fine.
-    state_income = 75149 / 100_000
+    # Bug 2 fix: look up actual state income for the ZIP instead of using national median
+    state_income = _zip_income(req.zip_code)
 
-    orig_est    = req.original_estimate or 0.0
+    # Bug 1 fix: use per-category training median when original_estimate is absent
+    # (feeding 0 breaks the model's top feature; category median is in-distribution)
+    if req.original_estimate:
+        orig_est = req.original_estimate
+    else:
+        medians  = meta.get("category_estimate_medians", {})
+        orig_est = medians.get(req.service_category, medians.get("overall", 300.0))
 
     cat_vec = [1 if req.service_category == c else 0 for c in categories]
     return np.array([[

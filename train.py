@@ -372,16 +372,29 @@ def main():
     for q, m in models_full.items():
         path = os.path.join(MODELS_DIR, f"xgb_q{int(q*100):03d}.joblib")
         joblib.dump(m, path)
+    # Per-category median original_estimate — used as inference fallback when
+    # original_estimate is absent (feeding 0 to the model breaks its top feature).
+    cat_estimate_medians = {}
+    for cat in set(cats):
+        cat_ests = [float(r["original_estimate"]) for r in priced
+                    if r["service_category"] == cat and r["original_estimate"]]
+        if cat_ests:
+            cat_estimate_medians[cat] = float(np.median(cat_ests))
+    cat_estimate_medians["overall"] = float(np.median(
+        [float(r["original_estimate"]) for r in priced if r["original_estimate"]]
+    ))
+
     meta = {
-        "training_median_interval": TRAINING_MEDIAN_INTERVAL,
-        "categories":               CATEGORIES,
-        "production_categories":    sorted(PRODUCTION_CATEGORIES),
-        "well_priced_categories":   sorted(WELL_PRICED),
-        "feature_names":            fnames,
-        "deadline_map":             DEADLINE_MAP,
-        "complexity_map":           COMPLEXITY_MAP,
-        "n_train":                  len(priced),
-        "blend_weights":            {"well_priced": 0.2, "hard": 0.7},
+        "training_median_interval":  TRAINING_MEDIAN_INTERVAL,
+        "categories":                CATEGORIES,
+        "production_categories":     sorted(PRODUCTION_CATEGORIES),
+        "well_priced_categories":    sorted(WELL_PRICED),
+        "feature_names":             fnames,
+        "deadline_map":              DEADLINE_MAP,
+        "complexity_map":            COMPLEXITY_MAP,
+        "n_train":                   len(priced),
+        "blend_weights":             {"well_priced": 0.2, "hard": 0.7},
+        "category_estimate_medians": cat_estimate_medians,
     }
     with open(os.path.join(MODELS_DIR, "meta.json"), "w") as f:
         json.dump(meta, f, indent=2)

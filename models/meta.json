@@ -82,5 +82,22 @@
   "blend_weights": {
     "well_priced": 0.2,
     "hard": 0.7
+  },
+  "category_estimate_medians": {
+    "Roofing": 362.445,
+    "Moving": 352.75,
+    "Landscaping": 230.23,
+    "Electrical": 225.0,
+    "Flooring": 653.1,
+    "Painting": 165.0,
+    "Cleaning": 319.56,
+    "Plumbing": 240.0,
+    "Pest Control": 376.3,
+    "Appliance Repair": 208.38,
+    "HVAC": 333.07,
+    "Exterior": 2350.0,
+    "Handyman": 250.0,
+    "General Contractor": 825.0,
+    "overall": 316.31
   }
 }
