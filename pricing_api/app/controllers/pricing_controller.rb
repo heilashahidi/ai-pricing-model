@@ -1,6 +1,6 @@
 class PricingController < ApplicationController
   REQUIRED_FIELDS = %w[job_id service_category zip_code job_description].freeze
-  PRICING_SERVICE_URL = ENV.fetch("PRICING_SERVICE_URL", "http://localhost:8001/predict")
+  PRICING_SERVICE_URL = ENV.fetch("PRICING_SERVICE_URL", "http://localhost:8001/.netlify/functions/pricing-estimate")
   PRICING_SERVICE_TIMEOUT = 8 # seconds — leaves headroom under the 2s SLA
 
   def estimate
@@ -46,7 +46,7 @@ class PricingController < ApplicationController
     http.read_timeout = PRICING_SERVICE_TIMEOUT
 
     req           = Net::HTTP::Post.new(uri.path, "Content-Type" => "application/json",
-                                                  "X-Internal-Key" => ENV.fetch("PRICING_SERVICE_INTERNAL_KEY", ""))
+                                                  "Authorization" => "Bearer #{ENV.fetch("GAUNTLET_PRICING_SECRET", "")}")
     req.body      = body.to_json
     response      = http.request(req)
     parsed        = JSON.parse(response.body)

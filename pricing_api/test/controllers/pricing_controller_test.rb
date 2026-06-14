@@ -67,7 +67,7 @@ class PricingControllerTest < ActionDispatch::IntegrationTest
   # ── Downstream error handling ───────────────────────────────────────────
 
   test "returns 500 when pricing service is unreachable" do
-    stub_request(:post, "http://localhost:8001/predict").to_raise(Errno::ECONNREFUSED)
+    stub_request(:post, "http://localhost:8001/.netlify/functions/pricing-estimate").to_raise(Errno::ECONNREFUSED)
     post "/.netlify/functions/pricing-estimate",
       params: pricing_payload.to_json,
       headers: auth_header.merge("Content-Type" => "application/json")
@@ -77,7 +77,7 @@ class PricingControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "returns 500 when pricing service times out" do
-    stub_request(:post, "http://localhost:8001/predict").to_raise(Net::ReadTimeout)
+    stub_request(:post, "http://localhost:8001/.netlify/functions/pricing-estimate").to_raise(Net::ReadTimeout)
     post "/.netlify/functions/pricing-estimate",
       params: pricing_payload.to_json,
       headers: auth_header.merge("Content-Type" => "application/json")

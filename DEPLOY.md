@@ -57,7 +57,7 @@ Two services deploy from this single repository.
 | `GAUNTLET_PRICING_SECRET` | Choose a strong secret string |
 | `RAILS_MASTER_KEY` | Contents of `pricing_api/config/master.key` (run `cat pricing_api/config/master.key` locally) |
 | `RAILS_ENV` | `production` |
-| `PRICING_SERVICE_URL` | `http://pricing-ml.railway.internal:8000/predict` |
+| `PRICING_SERVICE_URL` | `http://pricing-ml.railway.internal:8000/.netlify/functions/pricing-estimate` |
 | `HA_SIGNING_SECRET` | `<your-HA_SIGNING_SECRET>` |
 | `HA_APP_NAME` | `gauntlet` |
 
@@ -106,7 +106,7 @@ Visit `https://pricing-api.up.railway.app` in a browser to open the demo UI.
 The two services communicate over Railway's private network:
 
 ```
-pricing-api (Rails) → http://pricing-ml.railway.internal:8000/predict
+pricing-api (Rails) → http://pricing-ml.railway.internal:8000/.netlify/functions/pricing-estimate
 ```
 
 Railway's Wireguard-based private network is zero-configuration — no VPC or firewall rules needed. Internal traffic uses `http://`, not `https://`.
@@ -120,18 +120,17 @@ Railway's Wireguard-based private network is zero-configuration — no VPC or fi
 | Variable | Required | Notes |
 |----------|----------|-------|
 | `ANTHROPIC_API_KEY` | Yes | Claude Haiku for scope extraction |
-| `PRICING_SERVICE_INTERNAL_KEY` | Yes | Shared secret with pricing-api (must match) |
+| `GAUNTLET_PRICING_SECRET` | Yes | Shared with pricing-api; used for Bearer auth |
 | `PORT` | Auto-injected | Railway sets this; FastAPI binds to it |
 
 ### pricing-api (Rails)
 
 | Variable | Required | Notes |
 |----------|----------|-------|
-| `GAUNTLET_PRICING_SECRET` | Yes | Bearer token for API auth |
-| `PRICING_SERVICE_INTERNAL_KEY` | Yes | Shared secret with pricing-ml (must match) |
+| `GAUNTLET_PRICING_SECRET` | Yes | Bearer token for both inbound API auth and outbound ML calls |
 | `RAILS_MASTER_KEY` | Yes | From `config/master.key` — never commit this |
 | `RAILS_ENV` | Yes | Set to `production` |
-| `PRICING_SERVICE_URL` | Yes | `http://pricing-ml.railway.internal:8000/predict` |
+| `PRICING_SERVICE_URL` | Yes | `http://pricing-ml.railway.internal:8000/.netlify/functions/pricing-estimate` |
 | `HA_SIGNING_SECRET` | Yes | HouseAccount staging HMAC key |
 | `HA_APP_NAME` | Yes | `gauntlet` |
 | `PORT` | Auto-injected | Thruster reads this automatically |

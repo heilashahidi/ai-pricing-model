@@ -32,6 +32,8 @@ import numpy as np
 import pgeocode
 from cachetools import LRUCache
 from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 # 2023 ACS 1-year estimates — same source as enrich_zip.py
@@ -130,9 +132,38 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="HouseAccount Pricing Service", lifespan=lifespan)
 
 
-def _require_internal_key(x_internal_key: str = Header(default="")):
-    expected = os.environ.get("PRICING_SERVICE_INTERNAL_KEY", "")
-    if not expected or not hmac.compare_digest(x_internal_key, expected):
+# ── Error handlers (PRD-mandated shapes) ──────────────────────────────────
+
+@app.exception_handler(RequestValidationError)
+async def _validation_error(request, exc):
+    for err in exc.errors():
+        if err.get("type") == "json_invalid":
+            return JSONResponse(status_code=400, content={"error": "Malformed JSON"})
+    for err in exc.errors():
+        if err.get("type") == "missing":
+            field = err["loc"][-1] if err.get("loc") else "field"
+            return JSONResponse(status_code=400, content={"error": f"{field} required"})
+    return JSONResponse(status_code=400, content={"error": "Bad request"})
+
+@app.exception_handler(HTTPException)
+async def _http_error(request, exc):
+    detail = "Method not allowed" if exc.status_code == 405 else exc.detail
+    return JSONResponse(status_code=exc.status_code, content={"error": detail})
+
+@app.exception_handler(Exception)
+async def _server_error(request, exc):
+    log.error(f"Unhandled error: {exc}")
+    return JSONResponse(status_code=500, content={"error": "Internal server error"})
+
+
+# ── Auth ───────────────────────────────────────────────────────────────────
+
+def _require_bearer(authorization: str = Header(default="")):
+    expected = os.environ.get("GAUNTLET_PRICING_SECRET", "")
+    if not expected or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    token = authorization[len("Bearer "):].encode()
+    if not hmac.compare_digest(token, expected.encode()):
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
@@ -289,7 +320,7 @@ def route_predict(req: PricingRequest, X: np.ndarray) -> tuple[float, float, flo
 
 # ── Endpoint ───────────────────────────────────────────────────────────────
 
-@app.post("/predict", response_model=PricingResponse, dependencies=[Depends(_require_internal_key)])
+@app.post("/.netlify/functions/pricing-estimate", response_model=PricingResponse, dependencies=[Depends(_require_bearer)])
 async def predict(req: PricingRequest):
     scope = await extract_scope(req.job_description)
     X     = build_feature_vector(req, scope)

@@ -5,7 +5,7 @@ require_relative "../config/environment"
 require "rails/test_help"
 require "webmock/minitest"
 
-WebMock.disable_net_connect!(allow_localhost: true)
+WebMock.disable_net_connect!
 
 module ActiveSupport
   class TestCase
@@ -27,7 +27,7 @@ module ActiveSupport
         estimate_midpoint: 200.0, confidence: 0.72,
         model_version: "heila-v1.0.0"
       }
-      stub_request(:post, "http://localhost:8001/predict")
+      stub_request(:post, "http://localhost:8001/.netlify/functions/pricing-estimate")
         .to_return(status: status, body: body.to_json, headers: { "Content-Type" => "application/json" })
     end
 

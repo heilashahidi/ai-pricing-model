@@ -6,8 +6,9 @@ Rails.application.config.after_initialize do
   Thread.new do
     sleep 1  # let Rails finish booting
     begin
-      pricing_url = ENV.fetch("PRICING_SERVICE_URL", "http://localhost:8001/predict")
-      uri = URI(pricing_url.sub("/predict", "/health"))
+      pricing_url = ENV.fetch("PRICING_SERVICE_URL", "http://localhost:8001/.netlify/functions/pricing-estimate")
+      base        = pricing_url.sub(%r{/\.netlify/functions/.*}, "")
+      uri         = URI("#{base}/health")
       Net::HTTP.start(uri.host, uri.port, open_timeout: 5, read_timeout: 5) { |h| h.get(uri.path) }
       Rails.logger.info("Pricing service warm-up: OK")
     rescue => e
