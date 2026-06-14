@@ -207,6 +207,24 @@ Categories outside this set (Remodeling, Auto, Pool, Chimney, Moving, Painting, 
 
 ---
 
+## Performance
+
+**PRD target:** < 2 seconds end-to-end per request.
+
+The dominant latency source is the Claude Haiku scope extraction call (~300–800ms over the Anthropic API). XGBoost inference is negligible (<5ms). The response cache (`LRUCache(maxsize=2048)`) eliminates Haiku latency on repeated identical descriptions.
+
+**Measured (run `python3 integration_test.py` against the deployed endpoint):**
+
+| Metric | Target | Observed |
+|--------|--------|----------|
+| Cold-start | < 2000ms | run to measure |
+| Warm avg (5 calls) | < 2000ms | run to measure |
+| Warm max (5 calls) | < 2000ms | run to measure |
+
+Section 3 of `integration_test.py` measures and asserts all three against the live `RAILS_URL`.
+
+---
+
 ## Evaluation results
 
 ### Against baseline
@@ -244,7 +262,7 @@ Well-priced categories are preserved exactly; the model only intervenes where it
 
 2. **Category is always known at prediction time.** The routing strategy requires `service_category` in every request. This is a required field per the API contract.
 
-3. **`original_estimate` is available at serving time.** The baseline model's output is an optional field in the request. When absent (i.e. the AI pricing model IS the first model), the `original_estimate` feature defaults to 0 and the model relies on LLM features + category + income alone.
+3. **`original_estimate` is available at serving time.** The baseline model's output is an optional field in the request. When absent, the model substitutes the per-category median `original_estimate` from training data (stored in `models/meta.json`) to keep the feature in-distribution. Feeding 0 would break the model's top feature.
 
 4. **State-level income is an adequate geographic proxy.** ZIP-level income would be more precise but requires a Census API key. State median income captures broad cost-of-living variation (Mississippi $53,600 vs. Maryland $101,710) at the cost of intra-state variation.
 

@@ -269,18 +269,34 @@ for case in CASES:
 
 
 # ── Section 3: Response time ───────────────────────────────────────────────
+# PRD target: < 2000ms end-to-end per request.
+# Cold-start (first call) is measured separately — Haiku TCP + model load.
+# Warm calls (subsequent) reflect steady-state latency.
 
 print("\n── Section 3: Response time ───────────────────────────────")
-import time
 
-times = []
-for _ in range(3):
+# Cold-start call
+t0 = time.time()
+post(ENDPOINT, CASES[0]["payload"], auth_headers())
+cold_ms = (time.time() - t0) * 1000
+
+# 5 warm calls
+warm_times = []
+for _ in range(5):
     t0 = time.time()
-    status, _ = post(ENDPOINT, CASES[0]["payload"], auth_headers())
-    times.append(time.time() - t0)
+    post(ENDPOINT, CASES[0]["payload"], auth_headers())
+    warm_times.append((time.time() - t0) * 1000)
 
-avg_ms = sum(times) / len(times) * 1000
-check(f"Avg response time < 2000ms (warm)", avg_ms < 2000, f"{avg_ms:.0f}ms avg over 3 calls")
+avg_ms = sum(warm_times) / len(warm_times)
+max_ms = max(warm_times)
+min_ms = min(warm_times)
+warm_times_sorted = sorted(warm_times)
+p95_ms = warm_times_sorted[int(len(warm_times_sorted) * 0.95)]
+
+print(f"    cold={cold_ms:.0f}ms  warm: min={min_ms:.0f} avg={avg_ms:.0f} max={max_ms:.0f}ms (5 calls)")
+check("Cold-start < 2000ms", cold_ms < 2000, f"{cold_ms:.0f}ms")
+check("Warm avg < 2000ms",   avg_ms < 2000,  f"{avg_ms:.0f}ms avg over 5 calls")
+check("Warm max < 2000ms",   max_ms < 2000,  f"{max_ms:.0f}ms worst case")
 
 
 # ── Section 4: HouseAccount staging ───────────────────────────────────────
