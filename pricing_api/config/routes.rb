@@ -6,4 +6,7 @@ Rails.application.routes.draw do
 
   # Primary pricing endpoint — mirrors Netlify function path convention
   match "/.netlify/functions/pricing-estimate" => "pricing#estimate", via: :all
+
+  # Public homeowner-facing endpoint — no Bearer required, secret stays server-side
+  post "/api/estimate" => "pricing#public_estimate"
 end

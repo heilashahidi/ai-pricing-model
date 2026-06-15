@@ -96,6 +96,49 @@ class PricingControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Method not allowed", response.parsed_body["error"]
   end
 
+  # ── Public homeowner endpoint ───────────────────────────────────────────
+
+  test "public endpoint returns 200 without auth header" do
+    stub_pricing_service
+    post "/api/estimate",
+      params: { service_category: "Handyman", zip_code: "33484",
+                job_description:  "Install 3 supplied exterior shutters" }.to_json,
+      headers: { "Content-Type" => "application/json" }
+
+    assert_response 200
+    assert response.parsed_body["ok"]
+  end
+
+  test "public endpoint generates job_id server-side" do
+    stub_pricing_service
+    post "/api/estimate",
+      params: { service_category: "Handyman", zip_code: "33484",
+                job_description:  "Install shutters" }.to_json,
+      headers: { "Content-Type" => "application/json" }
+
+    assert_response 200
+    # job_id is echoed back from the pricing service stub — confirm it was set
+    assert response.parsed_body["job_id"].present?
+  end
+
+  test "public endpoint returns 400 when service_category missing" do
+    post "/api/estimate",
+      params: { zip_code: "33484", job_description: "Fix sink" }.to_json,
+      headers: { "Content-Type" => "application/json" }
+
+    assert_response 400
+    assert_equal "service_category required", response.parsed_body["error"]
+  end
+
+  test "public endpoint returns 400 for malformed JSON" do
+    post "/api/estimate",
+      params: "not json {{",
+      headers: { "Content-Type" => "application/json" }
+
+    assert_response 400
+    assert_equal "Malformed JSON", response.parsed_body["error"]
+  end
+
   # ── Confidence calibration passthrough ─────────────────────────────────
 
   test "passes OOD low confidence through from pricing service" do

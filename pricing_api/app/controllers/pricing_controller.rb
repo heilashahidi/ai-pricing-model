@@ -1,8 +1,26 @@
 class PricingController < ApplicationController
-  REQUIRED_FIELDS = %w[job_id service_category zip_code job_description].freeze
-  PRICING_SERVICE_URL = ENV.fetch("PRICING_SERVICE_URL", "http://localhost:8001/.netlify/functions/pricing-estimate")
+  REQUIRED_FIELDS        = %w[job_id service_category zip_code job_description].freeze
+  PUBLIC_REQUIRED_FIELDS = %w[service_category zip_code job_description].freeze
+  PRICING_SERVICE_URL    = ENV.fetch("PRICING_SERVICE_URL", "http://localhost:8001/.netlify/functions/pricing-estimate")
   PRICING_SERVICE_TIMEOUT = 8 # seconds — leaves headroom under the 2s SLA
 
+  # ── Public homeowner endpoint — no auth required from the browser ──────────
+  def public_estimate
+    body = parse_body
+    return render_error(400, "Malformed JSON") if body.nil?
+
+    missing = PUBLIC_REQUIRED_FIELDS.find { |f| body[f].blank? }
+    return render_error(400, "#{missing} required") if missing
+
+    payload = body.slice(*PUBLIC_REQUIRED_FIELDS + %w[deadline service_subtype])
+    payload["job_id"]        = SecureRandom.uuid
+    payload["booking_month"] = Time.current.strftime("%Y-%m")
+
+    result = call_pricing_service(payload)
+    render json: result[:body], status: result[:status]
+  end
+
+  # ── Internal API-to-API endpoint — Bearer required ─────────────────────────
   def estimate
     return render_error(405, "Method not allowed") unless request.post?
 
