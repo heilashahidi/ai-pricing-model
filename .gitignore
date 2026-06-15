@@ -27,3 +27,9 @@ pricing_api/config/master.key
 
 # macOS
 .DS_Store
+.gstack/
+
+# Runtime outcome DB (regenerated at service start)
+models/outcomes.db
+models/outcomes.db-shm
+models/outcomes.db-wal

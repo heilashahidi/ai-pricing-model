@@ -1,8 +1,10 @@
 class PricingController < ApplicationController
-  REQUIRED_FIELDS        = %w[job_id service_category zip_code job_description].freeze
-  PUBLIC_REQUIRED_FIELDS = %w[service_category zip_code job_description].freeze
-  PRICING_SERVICE_URL    = ENV.fetch("PRICING_SERVICE_URL", "http://localhost:8001/.netlify/functions/pricing-estimate")
-  PRICING_SERVICE_TIMEOUT = 8 # seconds — leaves headroom under the 2s SLA
+  REQUIRED_FIELDS         = %w[job_id service_category zip_code job_description].freeze
+  PUBLIC_REQUIRED_FIELDS  = %w[service_category zip_code job_description].freeze
+  OUTCOME_REQUIRED_FIELDS = %w[job_id final_price].freeze
+  PRICING_SERVICE_URL     = ENV.fetch("PRICING_SERVICE_URL",    "http://localhost:8001/.netlify/functions/pricing-estimate")
+  OUTCOME_SERVICE_URL     = ENV.fetch("OUTCOME_SERVICE_URL",    "http://localhost:8001/.netlify/functions/pricing-outcome")
+  PRICING_SERVICE_TIMEOUT = 8
 
   # ── Public homeowner endpoint — no auth required from the browser ──────────
   def public_estimate
@@ -16,7 +18,7 @@ class PricingController < ApplicationController
     payload["job_id"]        = SecureRandom.uuid
     payload["booking_month"] = Time.current.strftime("%Y-%m")
 
-    result = call_pricing_service(payload)
+    result = call_service(PRICING_SERVICE_URL, payload)
     render json: result[:body], status: result[:status]
   end
 
@@ -33,6 +35,27 @@ class PricingController < ApplicationController
     render json: result[:body], status: result[:status]
   end
 
+  # ── Outcome callback — called by HouseAccount when a job closes ───────────
+  def outcome
+    return render_error(405, "Method not allowed") unless request.post?
+
+    auth_result = authenticate
+    return render_error(401, "Unauthorized") unless auth_result
+
+    body = parse_body
+    return render_error(400, "Malformed JSON") if body.nil?
+
+    missing = OUTCOME_REQUIRED_FIELDS.find { |f| body[f].blank? }
+    return render_error(400, "#{missing} required") if missing
+
+    unless body["final_price"].is_a?(Numeric) && body["final_price"].positive?
+      return render_error(400, "final_price must be a positive number")
+    end
+
+    result = call_service(OUTCOME_SERVICE_URL, body.slice(*OUTCOME_REQUIRED_FIELDS))
+    render json: result[:body], status: result[:status]
+  end
+
   # ── Internal API-to-API endpoint — Bearer required ─────────────────────────
   def estimate
     return render_error(405, "Method not allowed") unless request.post?
@@ -46,7 +69,7 @@ class PricingController < ApplicationController
     missing = REQUIRED_FIELDS.find { |f| body[f].blank? }
     return render_error(400, "#{missing} required") if missing
 
-    result = call_pricing_service(body)
+    result = call_service(PRICING_SERVICE_URL, body)
     render json: result[:body], status: result[:status]
   end
 
@@ -70,24 +93,24 @@ class PricingController < ApplicationController
     nil
   end
 
-  def call_pricing_service(body)
-    uri     = URI(PRICING_SERVICE_URL)
-    http    = Net::HTTP.new(uri.host, uri.port)
+  def call_service(url, body)
+    uri      = URI(url)
+    http     = Net::HTTP.new(uri.host, uri.port)
     http.open_timeout = PRICING_SERVICE_TIMEOUT
     http.read_timeout = PRICING_SERVICE_TIMEOUT
 
-    req           = Net::HTTP::Post.new(uri.path, "Content-Type" => "application/json",
-                                                  "Authorization" => "Bearer #{ENV.fetch("GAUNTLET_PRICING_SECRET", "")}")
-    req.body      = body.to_json
-    response      = http.request(req)
-    parsed        = JSON.parse(response.body)
+    req      = Net::HTTP::Post.new(uri.path, "Content-Type"  => "application/json",
+                                             "Authorization" => "Bearer #{ENV.fetch("GAUNTLET_PRICING_SECRET", "")}")
+    req.body = body.to_json
+    response = http.request(req)
+    parsed   = JSON.parse(response.body)
 
     { status: response.code.to_i, body: parsed }
   rescue Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNREFUSED, Errno::ETIMEDOUT, SocketError, EOFError => e
-    Rails.logger.error("Pricing service unavailable: #{e.class} #{e.message}")
+    Rails.logger.error("Pricing service unavailable (#{url}): #{e.class} #{e.message}")
     { status: 500, body: { error: "Pricing service unavailable" } }
   rescue JSON::ParserError => e
-    Rails.logger.error("Pricing service bad response: #{e.message}")
+    Rails.logger.error("Pricing service bad response (#{url}): #{e.message}")
     { status: 500, body: { error: "Internal pricing error" } }
   end
 
