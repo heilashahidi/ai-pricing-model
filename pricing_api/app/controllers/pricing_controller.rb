@@ -20,6 +20,19 @@ class PricingController < ApplicationController
     render json: result[:body], status: result[:status]
   end
 
+  # ── Homeowner booking — submits estimate to HouseAccount staging ───────────
+  def book
+    body = parse_body
+    return render_error(400, "Malformed JSON") if body.nil?
+
+    %w[name phone zip_code job_description estimate_lo estimate_hi].each do |f|
+      return render_error(400, "#{f} required") if body[f].blank?
+    end
+
+    result = post_to_houseaccount(body)
+    render json: result[:body], status: result[:status]
+  end
+
   # ── Internal API-to-API endpoint — Bearer required ─────────────────────────
   def estimate
     return render_error(405, "Method not allowed") unless request.post?
@@ -76,6 +89,43 @@ class PricingController < ApplicationController
   rescue JSON::ParserError => e
     Rails.logger.error("Pricing service bad response: #{e.message}")
     { status: 500, body: { error: "Internal pricing error" } }
+  end
+
+  def post_to_houseaccount(body)
+    payload = {
+      name:     body["name"],
+      zip:      body["zip_code"],
+      phone:    body["phone"],
+      summary:  body["job_description"].to_s.truncate(200),
+      estimate: { min: body["estimate_lo"].to_f.round, max: body["estimate_hi"].to_f.round },
+      deadline: body["deadline"].presence || "",
+      comment:  "AI Pricing estimate | mid=$#{body['estimate_midpoint'].to_f.round} | #{body['model_version']}",
+    }
+
+    payload_body = payload.to_json
+    timestamp    = Time.current.to_i.to_s
+    key          = ENV.fetch("HA_SIGNING_SECRET", "")
+    signature    = OpenSSL::HMAC.hexdigest("SHA256", key, "#{timestamp}.#{payload_body}")
+
+    uri  = URI("https://pro.houseparty.dev/api/bookings")
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl      = true
+    http.open_timeout = 10
+    http.read_timeout = 10
+
+    req = Net::HTTP::Post.new(uri.path,
+      "Content-Type"  => "application/json",
+      "App-Name"      => ENV.fetch("HA_APP_NAME", "gauntlet"),
+      "App-Timestamp" => timestamp,
+      "App-Signature" => signature,
+    )
+    req.body = payload_body
+    response = http.request(req)
+
+    { status: response.code.to_i, body: JSON.parse(response.body) }
+  rescue => e
+    Rails.logger.error("HouseAccount booking failed: #{e.class} #{e.message}")
+    { status: 502, body: { error: "Booking service unavailable" } }
   end
 
   def render_error(status, message)

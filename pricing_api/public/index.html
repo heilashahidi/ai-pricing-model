@@ -452,14 +452,14 @@
 
       <div class="field">
         <label for="service_category">Service Category</label>
-        <select id="service_category">
+        <select id="service_category" onchange="updatePrompt()">
           <option value="">Select a category…</option>
           <option value="Appliance Repair">Appliance Repair</option>
           <option value="Auto">Auto</option>
           <option value="Chimney">Chimney</option>
           <option value="Cleaning">Cleaning</option>
           <option value="Electrical">Electrical</option>
-          <option value="Exterior">Exterior</option>
+          <option value="Exterior">Exterior Cleaning</option>
           <option value="Flooring">Flooring</option>
           <option value="General Contractor">General Contractor</option>
           <option value="Handyman" selected>Handyman</option>
@@ -477,7 +477,8 @@
 
       <div class="field">
         <label for="job_description">Job Description</label>
-        <textarea id="job_description" placeholder="Describe the job in detail — scope, materials supplied, number of items…">Install 3 supplied exterior shutters (we supply all shutters and hardware)</textarea>
+        <div id="desc-hint" style="font-size:.72rem;color:var(--text-3);margin-bottom:.4rem;line-height:1.45;"></div>
+        <textarea id="job_description" placeholder="Describe the job in detail…">Install 3 supplied exterior shutters (we supply all shutters and hardware)</textarea>
       </div>
 
       <div class="field-row">
@@ -535,6 +536,96 @@
 
 <script>
   const ENDPOINT = '/api/estimate';
+
+  const PROMPTS = {
+    'Handyman':          'Mention if you\'re supplying materials, how many items, and any access needs. e.g. "Mount a 65" TV on drywall — I supply the mount."',
+    'HVAC':              'Include unit age, symptoms, heating or cooling? e.g. "AC stopped cooling. 5-year-old Lennox unit, 3BR home."',
+    'Cleaning':          'Include home size, number of rooms, and frequency. e.g. "Deep clean 3BR/2BA house, ~1,400 sq ft, one-time."',
+    'Landscaping':       'Include yard size and what\'s needed. e.g. "Weekly mowing for ~0.25 acre front and back yard."',
+    'Pest Control':      'Include pest type, home size, and severity. e.g. "Bed bug treatment for 2BR apartment, found in bedroom."',
+    'Moving':            'Include number of rooms, distance, and floor access. e.g. "2BR move, 5 miles, both locations ground floor."',
+    'Plumbing':          'Include what\'s broken and where. e.g. "Kitchen faucet dripping constantly, shutoff valve won\'t close."',
+    'Electrical':        'Include number of outlets/fixtures and any panel work. e.g. "Install 3 outlets in garage, add 20A circuit."',
+    'Appliance Repair':  'Include appliance type, brand, model if known, and symptoms. e.g. "Samsung fridge not cooling. Model RF28R7351SR, 3 years old."',
+    'Roofing':           'Include roof size, material, and what\'s needed. e.g. "Replace 3 missing shingles. 2,000 sq ft asphalt shingle roof."',
+    'Flooring':          'Include room size, flooring type, and subfloor condition. e.g. "Install hardwood in living room, ~300 sq ft."',
+    'Painting':          'Include rooms, surfaces, and sq ft. e.g. "Paint 3 bedroom walls and ceiling, ~1,000 sq ft total."',
+    'Exterior':          'Include home size and surfaces. e.g. "Power wash 2-story exterior, driveway, and front walkway."',
+    'General Contractor':'Include scope, rooms affected, and timeline. e.g. "Kitchen remodel: cabinets, countertops, backsplash. ~200 sq ft."',
+    'Remodeling':        'Include rooms and materials if chosen. e.g. "Master bath remodel: new shower, vanity, and tile. ~100 sq ft."',
+    'Auto':              'Include make, model, year, and symptoms. e.g. "2019 Toyota Camry, engine light on, rough idle when cold."',
+    'Chimney':           'Include chimney height and last service date. e.g. "Annual sweep and inspection. Two-story home, ~25 ft chimney."',
+    'Pool':              'Include pool size and service needed. e.g. "Weekly maintenance for 15,000-gallon in-ground pool."',
+  };
+
+  function updatePrompt() {
+    const cat = document.getElementById('service_category').value;
+    const hint = document.getElementById('desc-hint');
+    hint.textContent = PROMPTS[cat] || '';
+  }
+
+  function showBookForm() {
+    document.getElementById('book-form').style.display = 'block';
+    document.getElementById('book-section').querySelector('.btn').style.display = 'none';
+  }
+
+  async function confirmBooking(lo, hi, mid, modelVersion) {
+    const name  = document.getElementById('book-name').value.trim();
+    const phone = document.getElementById('book-phone').value.trim();
+    const zip   = document.getElementById('zip_code').value.trim();
+    const desc  = document.getElementById('job_description').value.trim();
+    const cat   = document.getElementById('service_category').value;
+    const dead  = document.getElementById('deadline').value;
+
+    if (!name || !phone) {
+      document.getElementById('book-result').innerHTML =
+        '<div class="error-box">Name and phone are required to book.</div>';
+      return;
+    }
+
+    const btn = document.getElementById('confirm-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Booking…';
+
+    try {
+      const res = await fetch('/api/book', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name, phone,
+          zip_code: zip,
+          job_description: desc,
+          service_category: cat,
+          deadline: dead,
+          estimate_lo: lo,
+          estimate_hi: hi,
+          estimate_midpoint: mid,
+          model_version: modelVersion,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        document.getElementById('book-result').innerHTML =
+          `<div class="conf-desc" style="background:var(--success-dim);border-color:rgba(34,197,94,.2);color:var(--success)">
+            ✓ Booking submitted! HouseAccount will follow up shortly.
+          </div>`;
+        document.getElementById('book-form').style.display = 'none';
+      } else {
+        document.getElementById('book-result').innerHTML =
+          `<div class="error-box">Booking failed: ${data.error || 'Unknown error'}</div>`;
+        btn.disabled = false;
+        btn.innerHTML = 'Confirm Booking';
+      }
+    } catch (err) {
+      document.getElementById('book-result').innerHTML =
+        `<div class="error-box">Network error: ${err.message}</div>`;
+      btn.disabled = false;
+      btn.innerHTML = 'Confirm Booking';
+    }
+  }
+
+  updatePrompt();
 
   function fmt(n) {
     return '$' + Math.round(n).toLocaleString();
@@ -641,6 +732,28 @@
         <div class="meta-bar">
           <span class="meta-item">Model <strong>${data.model_version}</strong></span>
           <span class="meta-item"><strong>${category}</strong> · ${zip}</span>
+        </div>
+
+        <div id="book-section" style="margin-top:1rem">
+          <button class="btn" style="background:var(--success)" onclick="showBookForm()">
+            Book this job
+          </button>
+          <div id="book-form" style="display:none;margin-top:.875rem">
+            <div class="field-row" style="margin-bottom:.75rem">
+              <div class="field" style="margin:0">
+                <label for="book-name">Your Name</label>
+                <input type="text" id="book-name" placeholder="Jane Smith">
+              </div>
+              <div class="field" style="margin:0">
+                <label for="book-phone">Phone Number</label>
+                <input type="tel" id="book-phone" placeholder="555-555-5555">
+              </div>
+            </div>
+            <button class="btn" id="confirm-btn" onclick="confirmBooking(${lo},${hi},${mid},'${data.model_version}')">
+              Confirm Booking
+            </button>
+          </div>
+          <div id="book-result" style="margin-top:.75rem"></div>
         </div>
       `;
 

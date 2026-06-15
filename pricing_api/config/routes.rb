@@ -9,4 +9,5 @@ Rails.application.routes.draw do
 
   # Public homeowner-facing endpoint — no Bearer required, secret stays server-side
   post "/api/estimate" => "pricing#public_estimate"
+  post "/api/book"     => "pricing#book"
 end
