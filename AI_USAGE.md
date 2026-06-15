@@ -86,6 +86,28 @@ The base confidence formula `1 / (1 + interval_ratio)` needed a zero-guard (`if 
 
 The PRD references Node.js `timingSafeEqual` for auth. The Rails equivalent is `ActiveSupport::SecurityUtils.secure_compare`. Using a naive string comparison (`==`) for bearer token validation is a timing attack — an attacker can measure response time to guess the token character by character. `secure_compare` runs in constant time regardless of where the strings diverge.
 
+### 8. PRD strict audit — catching 7 API contract failures
+
+A parallel multi-agent audit of the codebase against the PRD's Appendix A found 7 blocking failures that would have caused an evaluator to fail the submission on first contact:
+
+- **Endpoint path**: `/predict` → `/.netlify/functions/pricing-estimate`
+- **Auth header**: `X-Internal-Key` (custom) → `Authorization: Bearer GAUNTLET_PRICING_SECRET`
+- **Auth env var**: `PRICING_SERVICE_INTERNAL_KEY` → `GAUNTLET_PRICING_SECRET`
+- **Error response key**: FastAPI's default `"detail"` → PRD-required `"error"` across all 5 error shapes (400 malformed JSON, 400 missing field, 401, 405, 500)
+- **Validation errors**: FastAPI's default 422 → 400 with `{"error": "<field> required"}`
+
+None of these were caught by the existing test suite because the Rails controller (the external-facing layer) already had the correct auth and error shapes — the failures were in the Python FastAPI service that the evaluators would also call directly. The fix required custom exception handlers in FastAPI and consolidating the two secrets into one.
+
+### 9. Two inference bugs found by root cause analysis
+
+A systematic investigation into why the model underperformed the baseline in 9 of 10 per-category MAPE comparisons found two inference bugs:
+
+**Bug 1 — `original_estimate=None` fed 0 to the model's top feature.** When `original_estimate` is absent, the code did `orig_est = req.original_estimate or 0.0`. Zero is out-of-distribution for every training row and breaks XGBoost's most important feature (importance 0.128). Fix: store per-category median estimates in `meta.json` during training and use them as the fallback.
+
+**Bug 2 — `state_median_income` hardcoded to national median at inference.** Training used real per-ZIP income from pgeocode. Serving used `75149 / 100_000` for every job regardless of location. Fix: load `pgeocode.Nominatim("us")` at startup and resolve the actual state income per ZIP on each request.
+
+The investigation also clarified that the "9 of 10 categories worse" headline was a measurement artifact — 6 of those categories are `WELL_PRICED` and the routing strategy uses the baseline for them anyway. Actual deployed MAPE was already 11.41% vs 11.56% baseline.
+
 ---
 
 ## Validation steps for AI-generated code
@@ -100,7 +122,7 @@ Manual review of all 14 priced Handyman rows. Checked `labor_only` against the a
 12 tests covering: missing auth (401), wrong token (401), malformed JSON (400), each missing required field (400), successful response shape, FastAPI timeout (500), FastAPI connection refused (500), GET request (405), OOD confidence passthrough. All use WebMock to isolate the controller from the actual FastAPI service.
 
 **Integration test** — `integration_test.py`
-13 tests running against the live stack: sections covering auth/validation, prediction quality (including OOD confidence caps and HVAC baseline passthrough), response time under 2s, and three live bookings posted to HouseAccount staging (HTTP 201 each).
+15 tests running against the live stack: sections covering auth/validation, prediction quality (including OOD confidence caps and HVAC baseline passthrough), response time (cold-start 1140ms, warm avg 289ms, warm max 320ms — all under 2s), and three live bookings posted to HouseAccount staging (HTTP 201 each). All 15 passing against the Railway production deployment.
 
 **Hallucinations / wrong output caught:**
 
@@ -113,6 +135,12 @@ Manual review of all 14 priced Handyman rows. Checked `labor_only` against the a
 4. **Staging test phone number reuse** — the integration test initially used hardcoded phone numbers. The second run returned HTTP 500 (HouseAccount staging rejected a duplicate booking). Fixed by appending a timestamp suffix to phone numbers per run.
 
 5. **`estimate_midpoint` as `(lo + hi) / 2`** — the spec reviewer flagged this as explicitly wrong per the PRD ("Computing `(lo + hi) / 2` server-side assumes a uniform distribution and produces worse MAPE comparisons"). Fixed to use the q=0.5 quantile model directly.
+
+6. **Wrong auth header on Python service** — the PRD audit found the Python FastAPI service used a custom `X-Internal-Key` header while the PRD mandates `Authorization: Bearer`. The Rails controller (the external-facing layer) already had the correct header, which is why the Rails tests passed but the Python service would fail when called directly by an evaluator.
+
+7. **FastAPI error response key `"detail"` vs `"error"`** — FastAPI's default exception handlers return `{"detail": "..."}`. The PRD requires `{"error": "..."}` across all error codes. Also, FastAPI returns 422 for validation errors; the PRD requires 400. Both required custom exception handlers. Caught only by auditing the Python service directly against the PRD contract.
+
+8. **Railway port mismatch** — `PRICING_SERVICE_URL` was set to port 8000 but the `pricing-ml` service runs on port 8080 (Railway assigns `PORT=8080`). The service was healthy but unreachable because all calls went to the wrong port. Caught by reading Railway logs via the CLI after the integration test returned consistent 500s.
 
 ---
 
