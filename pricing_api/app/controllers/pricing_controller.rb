@@ -2,8 +2,9 @@ class PricingController < ApplicationController
   REQUIRED_FIELDS         = %w[job_id service_category zip_code job_description].freeze
   PUBLIC_REQUIRED_FIELDS  = %w[service_category zip_code job_description].freeze
   OUTCOME_REQUIRED_FIELDS = %w[job_id final_price].freeze
-  PRICING_SERVICE_URL     = ENV.fetch("PRICING_SERVICE_URL",    "http://localhost:8001/.netlify/functions/pricing-estimate")
-  OUTCOME_SERVICE_URL     = ENV.fetch("OUTCOME_SERVICE_URL",    "http://localhost:8001/.netlify/functions/pricing-outcome")
+  PRICING_SERVICE_URL     = ENV.fetch("PRICING_SERVICE_URL",   "http://localhost:8001/.netlify/functions/pricing-estimate")
+  BATCH_SERVICE_URL       = ENV.fetch("BATCH_SERVICE_URL",     "http://localhost:8001/.netlify/functions/pricing-estimate-batch")
+  OUTCOME_SERVICE_URL     = ENV.fetch("OUTCOME_SERVICE_URL",   "http://localhost:8001/.netlify/functions/pricing-outcome")
   PRICING_SERVICE_TIMEOUT = 8
 
   # ── Public homeowner endpoint — no auth required from the browser ──────────
@@ -32,6 +33,22 @@ class PricingController < ApplicationController
     end
 
     result = post_to_houseaccount(body)
+    render json: result[:body], status: result[:status]
+  end
+
+  # ── Batch pricing — up to 50 estimates in one round-trip ─────────────────
+  def estimate_batch
+    return render_error(405, "Method not allowed") unless request.post?
+
+    auth_result = authenticate
+    return render_error(401, "Unauthorized") unless auth_result
+
+    body = parse_body
+    return render_error(400, "Malformed JSON") if body.nil?
+    return render_error(400, "estimates required") if body["estimates"].blank?
+    return render_error(400, "estimates must be an array") unless body["estimates"].is_a?(Array)
+
+    result = call_service(BATCH_SERVICE_URL, body)
     render json: result[:body], status: result[:status]
   end
 
