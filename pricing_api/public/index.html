@@ -503,17 +503,6 @@
         <input type="text" id="service_subtype" placeholder="e.g. Shutter Installation">
       </div>
 
-      <div class="field-row">
-        <div class="field">
-          <label for="original_estimate">Current Estimate ($) <span class="opt">(optional)</span></label>
-          <input type="number" id="original_estimate" value="750" placeholder="Baseline estimate">
-        </div>
-        <div class="field">
-          <label for="job_id">Job ID</label>
-          <input type="text" id="job_id" placeholder="auto-generated" readonly>
-        </div>
-      </div>
-
       <button class="btn" id="submit-btn" onclick="getPricing()">
         Get Price Estimate
       </button>
@@ -545,10 +534,7 @@
 </div>
 
 <script>
-  document.getElementById('job_id').value = 'demo-' + Math.random().toString(36).slice(2, 10);
-
-  const ENDPOINT = '/.netlify/functions/pricing-estimate';
-  const SECRET   = document.cookie.match(/pricing_secret=([^;]+)/)?.[1] || '';
+  const ENDPOINT = '/api/estimate';
 
   function fmt(n) {
     return '$' + Math.round(n).toLocaleString();
@@ -576,8 +562,6 @@
     const zip      = document.getElementById('zip_code').value.trim();
     const deadline = document.getElementById('deadline').value;
     const subtype  = document.getElementById('service_subtype').value.trim();
-    const origEst  = document.getElementById('original_estimate').value;
-    const jobId    = document.getElementById('job_id').value;
 
     if (!category || !desc || !zip) {
       alert('Service Category, Job Description, and ZIP Code are required.');
@@ -591,18 +575,14 @@
     document.getElementById('empty-state').style.display   = 'none';
     document.getElementById('result-content').style.display = 'none';
 
-    const payload = { job_id: jobId, service_category: category, zip_code: zip, job_description: desc };
+    const payload = { service_category: category, zip_code: zip, job_description: desc };
     if (deadline) payload.deadline = deadline;
     if (subtype)  payload.service_subtype = subtype;
-    if (origEst)  payload.original_estimate = parseFloat(origEst);
 
     try {
       const res = await fetch(ENDPOINT, {
         method:  'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': 'Bearer ' + (SECRET || prompt('Enter GAUNTLET_PRICING_SECRET:') || ''),
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
@@ -660,12 +640,11 @@
 
         <div class="meta-bar">
           <span class="meta-item">Model <strong>${data.model_version}</strong></span>
-          <span class="meta-item">Job <strong>${data.job_id}</strong></span>
+          <span class="meta-item"><strong>${category}</strong> · ${zip}</span>
         </div>
       `;
 
       document.getElementById('result-content').style.display = 'block';
-      document.getElementById('job_id').value = 'demo-' + Math.random().toString(36).slice(2, 10);
 
     } catch (err) {
       document.getElementById('result-content').innerHTML =
