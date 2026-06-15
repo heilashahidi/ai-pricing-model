@@ -4,10 +4,17 @@ Loads XGBoost models at startup, handles Haiku scope extraction + inference.
 Records every estimate in SQLite; accepts final_price outcomes to close the
 feedback loop and trigger background model retraining.
 
+Observability stack:
+  - Structured JSON logs on stdout (ship via Railway log drain)
+  - Prometheus metrics at /metrics/prometheus (scrape with Grafana)
+  - Strict health probe at /healthz (ping with Better Uptime / Cronitor)
+  - Daily MAPE drift check with Slack webhook alert
+
 Usage:
     python3 -m uvicorn pricing_service:app --port 8001
 """
 import asyncio
+import contextvars
 import csv
 import hashlib
 import hmac
@@ -18,6 +25,7 @@ import pickle
 import sqlite3
 import threading
 import time
+import uuid
 import warnings
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -44,8 +52,35 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from starlette.middleware.base import BaseHTTPMiddleware
 
-# 2023 ACS 1-year estimates
+# Optional: prometheus_client (stub silently if missing so tests run without it)
+try:
+    from prometheus_client import (
+        Counter, Gauge, Histogram,
+        make_asgi_app as _make_prom_app,
+    )
+    _PROM = True
+except ImportError:
+    class _Noop:
+        def labels(self, **_): return self
+        def inc(self, *a): pass
+        def observe(self, *a): pass
+        def set(self, *a): pass
+    def Counter(*a, **k):   return _Noop()
+    def Gauge(*a, **k):     return _Noop()
+    def Histogram(*a, **k): return _Noop()
+    def _make_prom_app():   return None
+    _PROM = False
+
+# Optional: httpx for async Slack webhooks (available via anthropic dep)
+try:
+    import httpx as _httpx
+except ImportError:
+    _httpx = None
+
+# ── State income table ─────────────────────────────────────────────────────
+
 _STATE_INCOME = {
     "Maryland": 101_710, "New Jersey": 101_050, "Massachusetts": 98_700,
     "Hawaii": 97_600, "Connecticut": 91_400, "California": 91_100,
@@ -68,13 +103,31 @@ _STATE_INCOME = {
     "US": 75_149,
 }
 
+# ── Logging ────────────────────────────────────────────────────────────────
+
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 log = logging.getLogger(__name__)
 
+_SERVICE = os.environ.get("SERVICE_NAME", "pricing-ml")
+_ENV     = os.environ.get("RAILWAY_ENVIRONMENT",
+           os.environ.get("ENV", "development"))
+
+# ContextVar lets each request coroutine carry its own request_id through
+# every _log() call without threading-style explicit passing.
+_request_id: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "request_id", default="-"
+)
+
 
 def _log(event: str, **fields) -> None:
-    log.info(json.dumps({"ts": datetime.now(timezone.utc).isoformat(),
-                         "event": event, **fields}))
+    log.info(json.dumps({
+        "ts":         datetime.now(timezone.utc).isoformat(),
+        "service":    _SERVICE,
+        "env":        _ENV,
+        "request_id": _request_id.get(),
+        "event":      event,
+        **fields,
+    }))
 
 
 # ── Constants ──────────────────────────────────────────────────────────────
@@ -85,6 +138,8 @@ DB_PATH           = os.path.join(MODELS_DIR, "outcomes.db")
 CACHE_PATH        = os.path.join(MODELS_DIR, "extraction_cache.pkl")
 FEATURES_CSV      = "features_enriched.csv"
 RETRAIN_THRESHOLD = int(os.environ.get("RETRAIN_THRESHOLD", "20"))
+# Alert when rolling 30d MAPE exceeds this (default = 1.5 × 11.6% baseline)
+DRIFT_THRESHOLD   = float(os.environ.get("DRIFT_MAPE_THRESHOLD", "17.4"))
 
 EXTRACTION_TOOL = {
     "name": "extract_scope",
@@ -97,9 +152,9 @@ EXTRACTION_TOOL = {
             "task_count":      {"type": "integer",
                                 "description": "Number of distinct tasks or items."},
             "complexity_tier": {"type": "string", "enum": ["low", "medium", "high"],
-                                "description": "low=single simple task, medium=moderate, high=multi-trade."},
+                                "description": "low=simple, medium=moderate, high=multi-trade."},
             "has_area_measure":{"type": "boolean",
-                                "description": "True if sq ft, room count, or linear footage is mentioned."},
+                                "description": "True if sq ft, room count, or linear footage mentioned."},
         },
         "required": ["labor_only", "task_count", "complexity_tier", "has_area_measure"],
     },
@@ -109,8 +164,43 @@ EXTRACTION_DEFAULTS = {
     "complexity_tier": "medium", "has_area_measure": False,
 }
 
+# ── Prometheus metrics ─────────────────────────────────────────────────────
+# Exposed at /metrics/prometheus for Grafana to scrape.
+# All category labels kept; key_name intentionally omitted (high-cardinality).
 
-# ── Reliability: circuit breaker + rate limiter + API key store ────────────
+_REQ_DURATION = Histogram(
+    "pricing_request_duration_seconds",
+    "End-to-end estimate latency",
+    ["category", "endpoint"],
+    buckets=[.05, .1, .25, .5, 1.0, 2.0, 5.0],
+)
+_CONFIDENCE = Histogram(
+    "pricing_confidence_score",
+    "Model confidence distribution by category",
+    ["category"],
+    buckets=[.1, .2, .3, .4, .5, .6, .7, .8, .9, 1.0],
+)
+_REQUESTS     = Counter("pricing_requests_total",
+                         "Total estimate requests", ["category", "status"])
+_LLM_CALLS    = Counter("pricing_llm_calls_total",
+                         "Anthropic API calls made")
+_LLM_FAILURES = Counter("pricing_llm_failures_total",
+                         "Anthropic API call failures")
+_CACHE_HITS   = Counter("pricing_scope_cache_hits_total",
+                         "Scope extraction in-memory cache hits")
+_OUTCOMES     = Counter("pricing_outcomes_total",
+                         "Outcome records received")
+_CIRCUIT_OPEN = Gauge("pricing_circuit_open",
+                       "1 if Anthropic circuit breaker is open")
+_N_TRAIN      = Gauge("pricing_n_train",
+                       "Training rows in current live model")
+_MAPE_90D     = Gauge("pricing_mape_90d",
+                       "Rolling 90-day MAPE by category", ["category"])
+_RETRAIN_RUNNING = Gauge("pricing_retrain_running",
+                          "1 if a background retrain is in progress")
+
+
+# ── Reliability primitives ─────────────────────────────────────────────────
 
 class _CircuitBreaker:
     """Open after N consecutive LLM failures; half-open after timeout."""
@@ -125,18 +215,20 @@ class _CircuitBreaker:
         if self._opened_at is None:
             return False
         if time.monotonic() - self._opened_at >= self._timeout:
-            self._opened_at = None  # half-open: try once
+            self._opened_at = None
             return False
         return True
 
     def on_success(self) -> None:
         self._failures  = 0
         self._opened_at = None
+        _CIRCUIT_OPEN.set(0)
 
     def on_failure(self) -> None:
         self._failures += 1
         if self._failures >= self._threshold and self._opened_at is None:
             self._opened_at = time.monotonic()
+            _CIRCUIT_OPEN.set(1)
             _log("circuit_open", service="anthropic",
                  failures=self._failures, timeout_s=self._timeout)
 
@@ -162,7 +254,7 @@ class _RateLimiter:
 
 class _ApiKeyStore:
     """
-    Multi-tenant API key registry. Supports two env formats:
+    Multi-tenant API key registry loaded from env at startup.
 
     Single key (backward compat):
         GAUNTLET_PRICING_SECRET=<hex>
@@ -170,7 +262,8 @@ class _ApiKeyStore:
     Multi-tenant:
         API_KEYS=[{"key":"<hex>","name":"prod","rate_limit":600}, ...]
 
-    If both are set, API_KEYS takes precedence.
+    Hot-reload: POST /keys/reload (re-reads env without restart).
+    Rotation: add new key → reload → remove old key.
     """
     def __init__(self):
         self._keys: dict[str, dict] = {}
@@ -189,7 +282,6 @@ class _ApiKeyStore:
                 return
             except Exception as ex:
                 _log("keys_load_error", error=str(ex))
-
         secret = os.environ.get("GAUNTLET_PRICING_SECRET", "")
         if secret:
             self._keys[secret] = {"name": "default", "rate_limit": 60}
@@ -232,18 +324,37 @@ def _zip_income(zip_code: str) -> float:
 # ── App state ──────────────────────────────────────────────────────────────
 
 class State:
-    models:          dict            = {}
-    meta:            dict            = {}
-    client:          object          = None
-    cache:           LRUCache        = LRUCache(maxsize=2048)
-    nomi:            object          = None
-    db_lock:         object          = None
-    retrain_running: bool            = False
-    circuit_breaker: object          = None  # _CircuitBreaker, set in lifespan
-    rate_limiter:    object          = None  # _RateLimiter, set in lifespan
-    key_store:       object          = None  # _ApiKeyStore, set in lifespan
+    models:          dict   = {}
+    meta:            dict   = {}
+    client:          object = None
+    cache:           LRUCache = LRUCache(maxsize=2048)
+    nomi:            object = None
+    db_lock:         object = None
+    retrain_running: bool   = False
+    circuit_breaker: object = None
+    rate_limiter:    object = None
+    key_store:       object = None
 
 state = State()
+
+
+# ── Middleware: request ID ─────────────────────────────────────────────────
+
+class _RequestIDMiddleware(BaseHTTPMiddleware):
+    """
+    Stamps every request with a short random ID.
+    Reads X-Request-ID header if provided (caller correlation); otherwise mints one.
+    The ID flows into every _log() call via _request_id ContextVar.
+    When you ship logs to Datadog/Loki you can search by request_id to see
+    the full trace for a single request across all log lines.
+    """
+    async def dispatch(self, request: Request, call_next):
+        rid = request.headers.get("X-Request-ID") or str(uuid.uuid4())[:8]
+        _request_id.set(rid)
+        request.state.request_id = rid
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = rid
+        return response
 
 
 # ── DB helpers ─────────────────────────────────────────────────────────────
@@ -252,6 +363,7 @@ def _init_db(path: str) -> None:
     with sqlite3.connect(path) as conn:
         conn.executescript("""
             PRAGMA journal_mode=WAL;
+
             CREATE TABLE IF NOT EXISTS estimates (
                 job_id            TEXT PRIMARY KEY,
                 service_category  TEXT NOT NULL,
@@ -264,19 +376,29 @@ def _init_db(path: str) -> None:
                 feature_vector    TEXT NOT NULL,
                 created_at        TEXT NOT NULL
             );
+
             CREATE TABLE IF NOT EXISTS outcomes (
                 job_id       TEXT PRIMARY KEY,
                 final_price  REAL NOT NULL,
                 ape          REAL,
                 recorded_at  TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS model_health (
+                checked_at    TEXT NOT NULL,
+                mape_30d      REAL,
+                n_outcomes    INTEGER,
+                baseline_mape REAL,
+                drift_ratio   REAL,
+                alert_sent    INTEGER DEFAULT 0
+            );
+
             CREATE INDEX IF NOT EXISTS idx_outcomes_recorded
                 ON outcomes(recorded_at);
         """)
 
 
 def _lookup_stored_estimate(job_id: str) -> Optional["PricingResponse"]:
-    """Return the stored estimate for job_id if it exists (idempotency)."""
     try:
         with sqlite3.connect(DB_PATH) as conn:
             row = conn.execute(
@@ -332,8 +454,25 @@ async def lifespan(app: FastAPI):
         state.models[q] = joblib.load(path)
     with open(META_PATH) as f:
         state.meta = json.load(f)
+
+    # Load baseline MAPE for drift alerting
+    if os.path.exists("eval_results.json"):
+        with open("eval_results.json") as f:
+            _er = json.load(f)
+        state.meta.setdefault(
+            "baseline_mape",
+            _er.get("benchmark", {}).get("blended_baseline_mape", 11.6),
+        )
+    else:
+        state.meta.setdefault("baseline_mape", 11.6)
+
+    # Seed model_version if not present in meta.json (first run after adding this field)
+    state.meta.setdefault("model_version", "heila-v1.0.0")
+
     _log("models_loaded", n_train=state.meta["n_train"],
-         version=state.meta.get("model_version", "heila-v1.0.0"))
+         version=state.meta["model_version"],
+         baseline_mape=state.meta["baseline_mape"])
+    _N_TRAIN.set(state.meta["n_train"])
 
     # Extraction cache: restore from disk
     if os.path.exists(CACHE_PATH):
@@ -344,11 +483,9 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             _log("cache_restore_failed", error=str(e))
 
-    # pgeocode
+    # pgeocode + ZIP prewarm
     _log("startup", phase="pgeocode")
     state.nomi = pgeocode.Nominatim("us")
-
-    # Pre-warm ZIP income cache from training data
     if os.path.exists(FEATURES_CSV):
         with open(FEATURES_CSV) as f:
             for row in csv.DictReader(f):
@@ -363,7 +500,7 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("ANTHROPIC_API_KEY not set")
     state.client = anthropic.AsyncAnthropic(api_key=api_key)
 
-    # Reliability primitives
+    # Reliability + auth primitives
     state.circuit_breaker = _CircuitBreaker(threshold=5, timeout=60.0)
     state.rate_limiter    = _RateLimiter()
     state.key_store       = _ApiKeyStore()
@@ -371,11 +508,24 @@ async def lifespan(app: FastAPI):
     # DB
     state.db_lock = threading.Lock()
     _init_db(DB_PATH)
-    _log("startup", phase="ready")
+
+    # Prometheus initial gauge sync
+    await _update_prom_gauges()
+
+    # Start daily health-check loop
+    health_task = asyncio.create_task(_health_check_loop())
+
+    _log("startup", phase="ready", prom_available=_PROM)
 
     yield
 
-    # Persist extraction cache to disk on clean shutdown
+    # Clean shutdown
+    health_task.cancel()
+    try:
+        await health_task
+    except asyncio.CancelledError:
+        pass
+
     try:
         with open(CACHE_PATH, "wb") as f:
             pickle.dump(dict(state.cache), f)
@@ -387,6 +537,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="HouseAccount Pricing Service", lifespan=lifespan)
+app.add_middleware(_RequestIDMiddleware)
+
+# Mount Prometheus scrape endpoint (Grafana → Connections → Data Sources → Prometheus)
+_prom_app = _make_prom_app()
+if _prom_app:
+    app.mount("/metrics/prometheus", _prom_app)
 
 
 # ── Error handlers ─────────────────────────────────────────────────────────
@@ -423,18 +579,12 @@ async def _server_error(request, exc):
 # ── Auth ───────────────────────────────────────────────────────────────────
 
 def _get_key_meta(authorization: str = Header(default="")) -> dict:
-    """
-    Validates Bearer token against the key store.
-    Returns key metadata (name, rate_limit) on success.
-    Raises 401 on bad/missing token, 429 on rate limit exceeded.
-    """
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Unauthorized")
     token = authorization[len("Bearer "):]
 
     ks = state.key_store
     if ks is None:
-        # Fallback during tests / before lifespan
         expected = os.environ.get("GAUNTLET_PRICING_SECRET", "")
         if not expected or not hmac.compare_digest(token.encode(), expected.encode()):
             raise HTTPException(status_code=401, detail="Unauthorized")
@@ -506,19 +656,16 @@ class OutcomeResponse(BaseModel):
 # ── LLM scope extraction ───────────────────────────────────────────────────
 
 async def extract_scope(description: str) -> dict:
-    """
-    Extract scope features via Claude Haiku. Returns cached result immediately.
-    Falls back to EXTRACTION_DEFAULTS on circuit-open or double failure.
-    Failures do NOT populate the cache.
-    """
     key = hashlib.sha256(description.encode()).hexdigest()
     if key in state.cache:
+        _CACHE_HITS.inc()
         return state.cache[key]
 
     cb = state.circuit_breaker
     if cb and cb.is_open:
         return EXTRACTION_DEFAULTS
 
+    _LLM_CALLS.inc()
     for attempt in range(2):
         try:
             resp = await state.client.messages.create(
@@ -537,6 +684,7 @@ async def extract_scope(description: str) -> dict:
                     state.cache[key] = block.input
                     return block.input
         except Exception as e:
+            _LLM_FAILURES.inc()
             if cb:
                 cb.on_failure()
             if attempt == 0:
@@ -593,8 +741,7 @@ def compute_confidence(lo: float, hi: float, mid: float, category: str) -> float
     cap = 1.0
     if mid > 5000:
         cap = min(cap, 0.40)
-    median_interval = meta.get("training_median_interval", 212)
-    if (hi - lo) > 3 * median_interval:
+    if (hi - lo) > 3 * meta.get("training_median_interval", 212):
         cap = min(cap, 0.45)
     if category not in set(meta.get("production_categories", [])):
         cap = min(cap, 0.40)
@@ -611,10 +758,11 @@ def route_predict(req: PricingRequest, X: np.ndarray) -> tuple[float, float, flo
         hi  = req.original_estimate_hi  if req.original_estimate_hi  is not None else req.original_estimate * 1.2
         return fix_intervals(lo, req.original_estimate, hi)
 
-    lo_raw  = float(state.models[0.05].predict(X)[0])
-    mid_raw = float(state.models[0.5].predict(X)[0])
-    hi_raw  = float(state.models[0.95].predict(X)[0])
-    return fix_intervals(lo_raw, mid_raw, hi_raw)
+    return fix_intervals(
+        float(state.models[0.05].predict(X)[0]),
+        float(state.models[0.5].predict(X)[0]),
+        float(state.models[0.95].predict(X)[0]),
+    )
 
 
 # ── Retrain ────────────────────────────────────────────────────────────────
@@ -630,32 +778,21 @@ def _bump_version(version: str) -> str:
 
 def _xgb_params(quantile: float) -> dict:
     return {
-        "objective":        "reg:quantileerror",
-        "quantile_alpha":   quantile,
-        "n_estimators":     400,
-        "max_depth":        4,
-        "learning_rate":    0.05,
-        "subsample":        0.8,
-        "colsample_bytree": 0.8,
-        "min_child_weight": 3,
-        "random_state":     42,
-        "verbosity":        0,
+        "objective": "reg:quantileerror", "quantile_alpha": quantile,
+        "n_estimators": 400, "max_depth": 4, "learning_rate": 0.05,
+        "subsample": 0.8, "colsample_bytree": 0.8, "min_child_weight": 3,
+        "random_state": 42, "verbosity": 0,
     }
 
 
 def _retrain_sync() -> None:
-    """
-    Blocking retrain — runs in thread-pool executor.
-    Merges original labeled CSV rows + DB outcome rows, retrains three
-    quantile models, atomically swaps model files, hot-reloads state.
-    """
+    """Blocking retrain — runs in thread-pool executor."""
     try:
         meta           = state.meta
         deadline_map   = meta["deadline_map"]
         complexity_map = meta["complexity_map"]
         categories     = meta["categories"]
 
-        # Original labeled CSV rows
         csv_rows = []
         if os.path.exists(FEATURES_CSV):
             with open(FEATURES_CSV) as f:
@@ -680,7 +817,6 @@ def _retrain_sync() -> None:
             X_parts.append(np.array([_csv_feat(r) for r in csv_rows], dtype=np.float32))
             y_parts.append(np.array([float(r["final_price"]) for r in csv_rows], dtype=np.float32))
 
-        # New outcome rows (feature vectors already stored)
         with sqlite3.connect(DB_PATH) as conn:
             db_rows = conn.execute(
                 "SELECT e.feature_vector, o.final_price FROM outcomes o "
@@ -696,17 +832,12 @@ def _retrain_sync() -> None:
 
         X = np.vstack(X_parts)
         y = np.concatenate(y_parts)
-        _log("retrain_start", csv_rows=len(csv_rows),
-             db_rows=len(db_rows), total=len(y))
+        _log("retrain_start", csv_rows=len(csv_rows), db_rows=len(db_rows), total=len(y))
 
-        # Train
-        new_models = {}
-        for q in [0.05, 0.5, 0.95]:
-            m = xgb.XGBRegressor(**_xgb_params(q))
+        new_models = {q: xgb.XGBRegressor(**_xgb_params(q)) for q in [0.05, 0.5, 0.95]}
+        for q, m in new_models.items():
             m.fit(X, y)
-            new_models[q] = m
 
-        # Atomic swap: write tmp → rename
         tag_map = {0.05: "q005", 0.5: "q050", 0.95: "q095"}
         for q, m in new_models.items():
             tag = tag_map[q]
@@ -715,20 +846,21 @@ def _retrain_sync() -> None:
             joblib.dump(m, tmp)
             os.rename(tmp, dst)
 
-        # Hot-reload state (GIL protects dict assignment)
         state.models.update(new_models)
-        new_version = _bump_version(state.meta.get("model_version", "heila-v1.0.0"))
-        state.meta["n_train"]      = len(y)
+        new_version             = _bump_version(state.meta.get("model_version", "heila-v1.0.0"))
+        state.meta["n_train"]       = len(y)
         state.meta["model_version"] = new_version
         with open(META_PATH, "w") as f:
             json.dump(state.meta, f, indent=2)
 
+        _N_TRAIN.set(len(y))
         _log("retrain_complete", n_train=len(y), new_version=new_version)
 
     except Exception as e:
         _log("retrain_error", error=str(e))
     finally:
         state.retrain_running = False
+        _RETRAIN_RUNNING.set(0)
 
 
 async def _maybe_retrain() -> None:
@@ -739,28 +871,147 @@ async def _maybe_retrain() -> None:
             new_labeled = conn.execute(
                 "SELECT COUNT(*) FROM outcomes o JOIN estimates e ON o.job_id = e.job_id"
             ).fetchone()[0]
-        n_at_last_fit = state.meta.get("n_train", 0)
-        if new_labeled >= RETRAIN_THRESHOLD and new_labeled > n_at_last_fit:
+        if new_labeled >= RETRAIN_THRESHOLD and new_labeled > state.meta.get("n_train", 0):
             _log("retrain_triggered", new_labeled=new_labeled)
             state.retrain_running = True
+            _RETRAIN_RUNNING.set(1)
             asyncio.get_event_loop().run_in_executor(None, _retrain_sync)
     except Exception as e:
         _log("retrain_check_error", error=str(e))
 
 
-# ── Core inference (shared between single + batch) ─────────────────────────
+# ── Observability: Prometheus gauge sync + MAPE drift alert ───────────────
+
+async def _update_prom_gauges() -> None:
+    """Sync Prometheus gauges from DB. Called at startup and after each health check."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            rows = conn.execute("""
+                SELECT e.service_category, AVG(o.ape)
+                FROM outcomes o JOIN estimates e ON o.job_id = e.job_id
+                WHERE o.ape IS NOT NULL
+                  AND o.recorded_at >= datetime('now', '-90 days')
+                GROUP BY e.service_category
+            """).fetchall()
+        for cat, mape in rows:
+            if mape is not None:
+                _MAPE_90D.labels(category=cat).set(mape)
+    except Exception:
+        pass
+    cb = state.circuit_breaker
+    _CIRCUIT_OPEN.set(1 if (cb and cb.is_open) else 0)
+    _N_TRAIN.set(state.meta.get("n_train", 0))
+    _RETRAIN_RUNNING.set(1 if state.retrain_running else 0)
+
+
+async def _send_drift_alert(mape_30d: float, n: int, ratio: float) -> None:
+    """POST a Slack webhook when MAPE drift exceeds threshold."""
+    webhook = os.environ.get("SLACK_WEBHOOK_URL")
+    if not webhook:
+        _log("drift_alert_no_webhook", mape_30d=mape_30d, ratio=ratio)
+        return
+
+    baseline = state.meta.get("baseline_mape", 11.6)
+    payload  = {
+        "text": (
+            f":warning: *HouseAccount Pricing — MAPE Drift Alert*\n"
+            f"30-day MAPE: *{mape_30d:.1f}%* vs baseline {baseline:.1f}% "
+            f"({ratio:.1f}x — threshold {DRIFT_THRESHOLD:.1f}%)\n"
+            f"Based on {n} outcomes over the last 30 days.\n"
+            f"Check `/metrics` for per-category breakdown. "
+            f"Trigger `POST /retrain` if retraining data is sufficient."
+        )
+    }
+
+    try:
+        if _httpx:
+            async with _httpx.AsyncClient() as client:
+                r = await client.post(webhook, json=payload, timeout=10.0)
+                _log("drift_alert_sent", http_status=r.status_code,
+                     mape_30d=mape_30d, ratio=ratio)
+        else:
+            import urllib.request as _ur
+            req = _ur.Request(webhook, data=json.dumps(payload).encode(),
+                              headers={"Content-Type": "application/json"})
+            _ur.urlopen(req, timeout=10)
+            _log("drift_alert_sent", mape_30d=mape_30d, ratio=ratio)
+    except Exception as e:
+        _log("drift_alert_failed", error=str(e))
+
+
+async def _check_mape_drift() -> None:
+    """
+    Compute 30-day rolling MAPE. If it exceeds DRIFT_THRESHOLD, fire a
+    Slack alert and write a record to model_health for audit trail.
+    Requires at least 10 outcomes to avoid false positives on thin data.
+    """
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute("""
+                SELECT AVG(ape), COUNT(*)
+                FROM outcomes
+                WHERE ape IS NOT NULL
+                  AND recorded_at >= datetime('now', '-30 days')
+            """).fetchone()
+
+        mape_30d, n = row[0], row[1]
+
+        if mape_30d is None or n < 10:
+            _log("drift_check_skipped", n=n, reason="insufficient_data")
+            return
+
+        baseline   = state.meta.get("baseline_mape", 11.6)
+        ratio      = round(mape_30d / baseline, 2)
+        alert_sent = 0
+
+        _log("drift_check", mape_30d=round(mape_30d, 1),
+             baseline=baseline, ratio=ratio, n=n, threshold=DRIFT_THRESHOLD)
+
+        if mape_30d > DRIFT_THRESHOLD:
+            await _send_drift_alert(round(mape_30d, 1), n, ratio)
+            alert_sent = 1
+
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute(
+                """INSERT INTO model_health
+                   (checked_at, mape_30d, n_outcomes, baseline_mape, drift_ratio, alert_sent)
+                   VALUES (?,?,?,?,?,?)""",
+                (datetime.now(timezone.utc).isoformat(),
+                 round(mape_30d, 2), n, baseline, ratio, alert_sent),
+            )
+    except Exception as e:
+        _log("drift_check_error", error=str(e))
+
+
+async def _health_check_loop() -> None:
+    """
+    Background coroutine started in lifespan. Runs drift check + gauge sync
+    daily. Initial delay of 1 hour gives the DB time to accumulate outcomes
+    before the first check.
+    """
+    await asyncio.sleep(3600)
+    while True:
+        await _check_mape_drift()
+        await _update_prom_gauges()
+        await asyncio.sleep(86400)
+
+
+# ── Core inference ─────────────────────────────────────────────────────────
 
 async def _predict_one(req: PricingRequest, key_name: str) -> PricingResponse:
     t0 = time.monotonic()
 
-    # Idempotency: same job_id → return stored result
     stored = _lookup_stored_estimate(req.job_id)
     if stored:
-        _log("estimate_idempotent", job_id=req.job_id, key_name=key_name,
-             latency_ms=round((time.monotonic() - t0) * 1000))
+        latency = time.monotonic() - t0
+        _REQ_DURATION.labels(category=req.service_category, endpoint="estimate").observe(latency)
+        _REQUESTS.labels(category=req.service_category, status="idempotent").inc()
+        _log("estimate_idempotent", job_id=req.job_id[:8],
+             category=req.service_category, key_name=key_name,
+             latency_ms=round(latency * 1000))
         return stored
 
-    desc_hash   = hashlib.sha256(req.job_description.encode()).hexdigest()
+    desc_hash    = hashlib.sha256(req.job_description.encode()).hexdigest()
     scope_cached = desc_hash in state.cache
 
     scope       = await extract_scope(req.job_description)
@@ -773,12 +1024,16 @@ async def _predict_one(req: PricingRequest, key_name: str) -> PricingResponse:
 
     confidence    = compute_confidence(lo, hi, mid, req.service_category)
     model_version = state.meta.get("model_version", "heila-v1.0.0")
-    latency_ms    = round((time.monotonic() - t0) * 1000)
+    latency       = time.monotonic() - t0
+
+    _REQ_DURATION.labels(category=req.service_category, endpoint="estimate").observe(latency)
+    _CONFIDENCE.labels(category=req.service_category).observe(confidence)
+    _REQUESTS.labels(category=req.service_category, status="success").inc()
 
     _log("estimate",
          job_id=req.job_id[:8], category=req.service_category, zip=req.zip_code,
          lo=round(lo), mid=round(mid), hi=round(hi), confidence=confidence,
-         latency_ms=latency_ms, model_version=model_version,
+         latency_ms=round(latency * 1000), model_version=model_version,
          scope_cached=scope_cached, key_name=key_name,
          labor_only=scope.get("labor_only"), tasks=scope.get("task_count"))
 
@@ -788,10 +1043,8 @@ async def _predict_one(req: PricingRequest, key_name: str) -> PricingResponse:
 
     return PricingResponse(
         job_id=req.job_id,
-        estimate_lo=round(lo, 2),
-        estimate_hi=round(hi, 2),
-        estimate_midpoint=round(mid, 2),
-        confidence=confidence,
+        estimate_lo=round(lo, 2), estimate_hi=round(hi, 2),
+        estimate_midpoint=round(mid, 2), confidence=confidence,
         model_version=model_version,
     )
 
@@ -799,8 +1052,7 @@ async def _predict_one(req: PricingRequest, key_name: str) -> PricingResponse:
 # ── Endpoints ──────────────────────────────────────────────────────────────
 
 @app.post("/.netlify/functions/pricing-estimate", response_model=PricingResponse)
-async def predict(req: PricingRequest,
-                  key_meta: dict = Depends(_get_key_meta)):
+async def predict(req: PricingRequest, key_meta: dict = Depends(_get_key_meta)):
     return await _predict_one(req, key_meta["name"])
 
 
@@ -808,17 +1060,13 @@ async def predict(req: PricingRequest,
           response_model=BatchPricingResponse)
 async def predict_batch(req: BatchPricingRequest,
                         key_meta: dict = Depends(_get_key_meta)):
-    """
-    Run up to 50 estimates in parallel. Per-item errors are captured in
-    `error` field; the batch itself never fails with 5xx.
-    """
     async def _one(item: PricingRequest) -> BatchItem:
         try:
             r = await _predict_one(item, key_meta["name"])
             return BatchItem(**r.model_dump())
         except HTTPException as e:
             return BatchItem(ok=False, job_id=item.job_id, error=e.detail)
-        except Exception as e:
+        except Exception:
             return BatchItem(ok=False, job_id=item.job_id, error="Internal error")
 
     results = await asyncio.gather(*[_one(item) for item in req.estimates])
@@ -828,11 +1076,6 @@ async def predict_batch(req: BatchPricingRequest,
 @app.post("/.netlify/functions/pricing-outcome", response_model=OutcomeResponse)
 async def record_outcome(req: OutcomeRequest,
                          key_meta: dict = Depends(_get_key_meta)):
-    """
-    Called by HouseAccount when a job closes with a final_price.
-    Stores the label, computes APE against our midpoint, and schedules
-    a background retrain when RETRAIN_THRESHOLD new outcomes accumulate.
-    """
     ape = None
     try:
         with state.db_lock:
@@ -853,6 +1096,7 @@ async def record_outcome(req: OutcomeRequest,
         _log("db_error", op="record_outcome", job_id=req.job_id, error=str(e))
         raise HTTPException(status_code=500, detail="Failed to store outcome")
 
+    _OUTCOMES.inc()
     _log("outcome", job_id=req.job_id[:8], final_price=req.final_price,
          ape=ape, key_name=key_meta["name"])
 
@@ -862,28 +1106,57 @@ async def record_outcome(req: OutcomeRequest,
 
 @app.post("/retrain", dependencies=[Depends(_get_key_meta)])
 async def trigger_retrain():
-    """Manual retrain for ops. Non-blocking."""
     if state.retrain_running:
         return {"ok": True, "message": "Retrain already in progress"}
     state.retrain_running = True
+    _RETRAIN_RUNNING.set(1)
     asyncio.get_event_loop().run_in_executor(None, _retrain_sync)
     return {"ok": True, "message": "Retrain started"}
 
 
 @app.post("/keys/reload", dependencies=[Depends(_get_key_meta)])
 async def reload_keys():
-    """
-    Hot-reload API keys from env without restart.
-    Rotate keys by: add new key to API_KEYS → call this endpoint → remove old key.
-    """
     n = state.key_store.reload()
     _log("keys_reloaded", count=n)
     return {"ok": True, "keys_loaded": n}
 
 
+@app.get("/healthz")
+def healthz():
+    """
+    Strict probe for uptime monitors (Better Uptime, Cronitor, UptimeRobot).
+    Returns 200 only when fully operational; 503 otherwise.
+    Configure your monitor to alert on any non-200 response.
+
+    What triggers 503:
+      - Models not loaded (startup not complete)
+      - Anthropic circuit breaker open (LLM unreachable for >5 consecutive calls)
+      - SQLite DB unreachable
+    """
+    issues = []
+    if len(state.models) < 3:
+        issues.append("models_not_loaded")
+    cb = state.circuit_breaker
+    if cb and cb.is_open:
+        issues.append("anthropic_circuit_open")
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("SELECT 1 FROM estimates LIMIT 1")
+    except Exception:
+        issues.append("db_unreachable")
+
+    if issues:
+        return JSONResponse(status_code=503,
+                            content={"ok": False, "issues": issues})
+    return {
+        "ok":            True,
+        "model_version": state.meta.get("model_version", "unknown"),
+    }
+
+
 @app.get("/metrics")
 def metrics():
-    """Rolling accuracy stats from the outcome DB."""
+    """Human-readable JSON metrics. For Prometheus scraping use /metrics/prometheus."""
     try:
         with sqlite3.connect(DB_PATH) as conn:
             total_estimates = conn.execute(
@@ -902,9 +1175,13 @@ def metrics():
                 FROM outcomes o JOIN estimates e ON o.job_id = e.job_id
                 WHERE o.ape IS NOT NULL
                   AND o.recorded_at >= datetime('now', '-90 days')
-                GROUP BY e.service_category
-                ORDER BY AVG(o.ape)
+                GROUP BY e.service_category ORDER BY AVG(o.ape)
             """).fetchall()
+            last_health = conn.execute(
+                "SELECT checked_at, mape_30d, drift_ratio, alert_sent "
+                "FROM model_health ORDER BY checked_at DESC LIMIT 1"
+            ).fetchone()
+
         cb = state.circuit_breaker
         return {
             "ok":              True,
@@ -914,12 +1191,20 @@ def metrics():
             "outcomes_90d":    mape_row[1],
             "n_train":         state.meta.get("n_train"),
             "model_version":   state.meta.get("model_version", "heila-v1.0.0"),
+            "baseline_mape":   state.meta.get("baseline_mape", 11.6),
             "retrain_running": state.retrain_running,
             "retrain_threshold": RETRAIN_THRESHOLD,
+            "drift_threshold": DRIFT_THRESHOLD,
             "circuit_breaker": {
                 "open":     cb.is_open if cb else False,
                 "failures": cb._failures if cb else 0,
             },
+            "last_health_check": {
+                "checked_at":  last_health[0],
+                "mape_30d":    last_health[1],
+                "drift_ratio": last_health[2],
+                "alert_sent":  bool(last_health[3]),
+            } if last_health else None,
             "per_category_mape_90d": [
                 {"category": r[0], "mape": round(r[1], 1), "n": r[2]}
                 for r in per_cat

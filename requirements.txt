@@ -1,4 +1,5 @@
 anthropic==0.97.0
+prometheus-client==0.22.1
 cachetools==5.5.2
 fastapi==0.128.8
 joblib==1.5.3
