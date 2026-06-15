@@ -422,6 +422,71 @@
       background: var(--border-soft);
       margin: 0 1.5rem 1.25rem;
     }
+
+    /* ── Scenario cards ── */
+    .scenarios {
+      max-width: 1040px;
+      margin: 1.5rem auto 0;
+      padding: 0 1.5rem;
+    }
+    .scenarios-label {
+      font-size: .65rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: .625rem;
+    }
+    .scenarios-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: .625rem;
+    }
+    @media (max-width: 680px) {
+      .scenarios-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .scenario-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: .875rem;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, box-shadow .15s;
+      font-family: inherit;
+      color: var(--text);
+    }
+    .scenario-card:hover {
+      border-color: #3a3a54;
+      background: var(--surface-2);
+    }
+    .scenario-card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+      background: var(--surface-2);
+    }
+    .scenario-badge {
+      font-size: .58rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: 2px 7px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-bottom: .45rem;
+    }
+    .scenario-title {
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: .2rem;
+      letter-spacing: -.01em;
+    }
+    .scenario-desc {
+      font-size: .68rem;
+      color: var(--text-3);
+      line-height: 1.45;
+    }
   </style>
 </head>
 <body>
@@ -438,6 +503,32 @@
   </div>
   <span class="nav-pill">Demo</span>
 </nav>
+
+<section class="scenarios">
+  <div class="scenarios-label">Try a scenario</div>
+  <div class="scenarios-grid">
+    <button class="scenario-card active" onclick="loadScenario(0)">
+      <div class="scenario-badge" style="background:rgba(34,197,94,.12);color:var(--success)">Model corrects ↓58%</div>
+      <div class="scenario-title">Labor-Only Handyman</div>
+      <div class="scenario-desc">Baseline overestimates when the homeowner supplies materials. Model detects labor-only scope.</div>
+    </button>
+    <button class="scenario-card" onclick="loadScenario(1)">
+      <div class="scenario-badge" style="background:var(--accent-dim);color:var(--accent)">Baseline passthrough</div>
+      <div class="scenario-title">HVAC Maintenance</div>
+      <div class="scenario-desc">HVAC is well-priced at 9.7% MAPE — model routes directly to the baseline estimate.</div>
+    </button>
+    <button class="scenario-card" onclick="loadScenario(2)">
+      <div class="scenario-badge" style="background:var(--danger-dim);color:var(--danger)">Confidence &lt; 0.5</div>
+      <div class="scenario-title">Large Remodel (OOD)</div>
+      <div class="scenario-desc">Outside training distribution — model flags uncertainty and routes for manual review.</div>
+    </button>
+    <button class="scenario-card" onclick="loadScenario(3)">
+      <div class="scenario-badge" style="background:rgba(34,197,94,.12);color:var(--success)">High confidence</div>
+      <div class="scenario-title">Pest Control</div>
+      <div class="scenario-desc">65 priced training rows, 10.2% baseline MAPE — model is well-calibrated for this category.</div>
+    </button>
+  </div>
+</section>
 
 <div class="page">
 
@@ -537,6 +628,48 @@
 <script>
   const ENDPOINT = '/api/estimate';
 
+  const SCENARIOS = [
+    {
+      service_category: 'Handyman',
+      zip_code: '33484',
+      job_description: 'Install 3 supplied exterior shutters. We supply all shutters and all hardware — labor only.',
+      deadline: 'Within 1-2 weeks',
+    },
+    {
+      service_category: 'HVAC',
+      zip_code: '78704',
+      job_description: 'AC unit stopped cooling last night. 5-year-old Lennox system in a 3-bedroom home. Needs refrigerant recharge and inspection.',
+      deadline: 'As soon as possible',
+    },
+    {
+      service_category: 'Remodeling',
+      zip_code: '90210',
+      job_description: 'Full kitchen remodel — new cabinets, quartz countertops, tile backsplash, and appliance installation. Approximately 250 sq ft.',
+      deadline: 'Within 1 month',
+    },
+    {
+      service_category: 'Pest Control',
+      zip_code: '33324',
+      job_description: 'Bed bug heat treatment for a 2-bedroom apartment. Found in the main bedroom — mattress and box spring affected.',
+      deadline: 'As soon as possible',
+    },
+  ];
+
+  function loadScenario(idx) {
+    const s = SCENARIOS[idx];
+    document.getElementById('service_category').value = s.service_category;
+    document.getElementById('zip_code').value         = s.zip_code;
+    document.getElementById('job_description').value  = s.job_description;
+    document.getElementById('deadline').value         = s.deadline || '';
+    updatePrompt();
+    document.querySelectorAll('.scenario-card').forEach((c, i) =>
+      c.classList.toggle('active', i === idx)
+    );
+    // Reset result panel
+    document.getElementById('empty-state').style.display    = 'flex';
+    document.getElementById('result-content').style.display = 'none';
+  }
+
   const PROMPTS = {
     'Handyman':          'Mention if you\'re supplying materials, how many items, and any access needs. e.g. "Mount a 65" TV on drywall — I supply the mount."',
     'HVAC':              'Include unit age, symptoms, heating or cooling? e.g. "AC stopped cooling. 5-year-old Lennox unit, 3BR home."',
@@ -624,8 +757,6 @@
       btn.innerHTML = 'Confirm Booking';
     }
   }
-
-  updatePrompt();
 
   function fmt(n) {
     return '$' + Math.round(n).toLocaleString();
@@ -772,6 +903,8 @@
   document.querySelectorAll('input').forEach(el =>
     el.addEventListener('keydown', e => { if (e.key === 'Enter') getPricing(); })
   );
+
+  loadScenario(0);
 </script>
 
 </body>
