@@ -29,7 +29,8 @@ pricing_api/config/master.key
 .DS_Store
 .gstack/
 
-# Runtime outcome DB (regenerated at service start)
+# Runtime outcome DB and extraction cache (regenerated at service start)
 models/outcomes.db
 models/outcomes.db-shm
 models/outcomes.db-wal
+models/extraction_cache.pkl

@@ -78,7 +78,7 @@
     "medium": 1,
     "high": 2
   },
-  "n_train": 411,
+  "n_train": 416,
   "blend_weights": {
     "well_priced": 0.2,
     "hard": 0.7
@@ -99,5 +99,7 @@
     "Handyman": 250.0,
     "General Contractor": 825.0,
     "overall": 316.31
-  }
+  },
+  "baseline_mape": 11.56,
+  "model_version": "heila-v1.0.1"
 }
