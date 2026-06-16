@@ -31,6 +31,20 @@ module ActiveSupport
         .to_return(status: status, body: body.to_json, headers: { "Content-Type" => "application/json" })
     end
 
+    def booking_payload(overrides = {})
+      {
+        name:              "Jane Smith",
+        phone:             "555-555-1234",
+        zip_code:          "33484",
+        job_description:   "Install 3 supplied exterior shutters — labor only.",
+        estimate_lo:       150.0,
+        estimate_hi:       400.0,
+        estimate_midpoint: 275.0,
+        model_version:     "heila-v1.0.1",
+        deadline:          "Within 1-2 weeks",
+      }.merge(overrides).stringify_keys
+    end
+
     def auth_header
       { "Authorization" => "Bearer test-secret-key" }
     end

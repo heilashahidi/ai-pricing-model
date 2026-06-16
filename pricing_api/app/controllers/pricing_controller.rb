@@ -2,24 +2,24 @@ class PricingController < ApplicationController
   REQUIRED_FIELDS         = %w[job_id service_category zip_code job_description].freeze
   PUBLIC_REQUIRED_FIELDS  = %w[service_category zip_code job_description].freeze
   OUTCOME_REQUIRED_FIELDS = %w[job_id final_price].freeze
-  PRICING_SERVICE_URL     = ENV.fetch("PRICING_SERVICE_URL",   "http://localhost:8001/.netlify/functions/pricing-estimate")
-  BATCH_SERVICE_URL       = ENV.fetch("BATCH_SERVICE_URL",     "http://localhost:8001/.netlify/functions/pricing-estimate-batch")
-  OUTCOME_SERVICE_URL     = ENV.fetch("OUTCOME_SERVICE_URL",   "http://localhost:8001/.netlify/functions/pricing-outcome")
-  PRICING_SERVICE_TIMEOUT = 8
+  BOOK_REQUIRED_FIELDS    = %w[name phone zip_code job_description estimate_lo estimate_hi].freeze
+  PRICING_SERVICE_URL     = ENV.fetch("PRICING_SERVICE_URL",  "http://localhost:8001/.netlify/functions/pricing-estimate")
+  BATCH_SERVICE_URL       = ENV.fetch("BATCH_SERVICE_URL",    "http://localhost:8001/.netlify/functions/pricing-estimate-batch")
+  OUTCOME_SERVICE_URL     = ENV.fetch("OUTCOME_SERVICE_URL",  "http://localhost:8001/.netlify/functions/pricing-outcome")
 
   # ── Public homeowner endpoint — no auth required from the browser ──────────
   def public_estimate
     body = parse_body
     return render_error(400, "Malformed JSON") if body.nil?
 
-    missing = PUBLIC_REQUIRED_FIELDS.find { |f| body[f].blank? }
+    missing = PUBLIC_REQUIRED_FIELDS.find { |field| body[field].blank? }
     return render_error(400, "#{missing} required") if missing
 
     payload = body.slice(*PUBLIC_REQUIRED_FIELDS + %w[deadline service_subtype])
     payload["job_id"]        = SecureRandom.uuid
     payload["booking_month"] = Time.current.strftime("%Y-%m")
 
-    result = call_service(PRICING_SERVICE_URL, payload)
+    result = PricingServiceClient.new.call(PRICING_SERVICE_URL, payload)
     render json: result[:body], status: result[:status]
   end
 
@@ -28,15 +28,14 @@ class PricingController < ApplicationController
     body = parse_body
     return render_error(400, "Malformed JSON") if body.nil?
 
-    %w[name phone zip_code job_description estimate_lo estimate_hi].each do |f|
-      return render_error(400, "#{f} required") if body[f].blank?
-    end
+    missing = BOOK_REQUIRED_FIELDS.find { |field| body[field].blank? }
+    return render_error(400, "#{missing} required") if missing
 
-    result = post_to_houseaccount(body)
+    result = HouseAccountBookingService.new.submit(body)
     render json: result[:body], status: result[:status]
   end
 
-  # ── Batch pricing — up to 50 estimates in one round-trip ─────────────────
+  # ── Batch pricing — up to 50 estimates in one round-trip ──────────────────
   def estimate_batch
     return render_error(405, "Method not allowed") unless request.post?
 
@@ -48,7 +47,7 @@ class PricingController < ApplicationController
     return render_error(400, "estimates required") if body["estimates"].blank?
     return render_error(400, "estimates must be an array") unless body["estimates"].is_a?(Array)
 
-    result = call_service(BATCH_SERVICE_URL, body)
+    result = PricingServiceClient.new.call(BATCH_SERVICE_URL, body)
     render json: result[:body], status: result[:status]
   end
 
@@ -62,14 +61,14 @@ class PricingController < ApplicationController
     body = parse_body
     return render_error(400, "Malformed JSON") if body.nil?
 
-    missing = OUTCOME_REQUIRED_FIELDS.find { |f| body[f].blank? }
+    missing = OUTCOME_REQUIRED_FIELDS.find { |field| body[field].blank? }
     return render_error(400, "#{missing} required") if missing
 
     unless body["final_price"].is_a?(Numeric) && body["final_price"].positive?
       return render_error(400, "final_price must be a positive number")
     end
 
-    result = call_service(OUTCOME_SERVICE_URL, body.slice(*OUTCOME_REQUIRED_FIELDS))
+    result = PricingServiceClient.new.call(OUTCOME_SERVICE_URL, body.slice(*OUTCOME_REQUIRED_FIELDS))
     render json: result[:body], status: result[:status]
   end
 
@@ -83,10 +82,10 @@ class PricingController < ApplicationController
     body = parse_body
     return render_error(400, "Malformed JSON") if body.nil?
 
-    missing = REQUIRED_FIELDS.find { |f| body[f].blank? }
+    missing = REQUIRED_FIELDS.find { |field| body[field].blank? }
     return render_error(400, "#{missing} required") if missing
 
-    result = call_service(PRICING_SERVICE_URL, body)
+    result = PricingServiceClient.new.call(PRICING_SERVICE_URL, body)
     render json: result[:body], status: result[:status]
   end
 
@@ -108,64 +107,6 @@ class PricingController < ApplicationController
     JSON.parse(raw)
   rescue JSON::ParserError
     nil
-  end
-
-  def call_service(url, body)
-    uri      = URI(url)
-    http     = Net::HTTP.new(uri.host, uri.port)
-    http.open_timeout = PRICING_SERVICE_TIMEOUT
-    http.read_timeout = PRICING_SERVICE_TIMEOUT
-
-    req      = Net::HTTP::Post.new(uri.path, "Content-Type"  => "application/json",
-                                             "Authorization" => "Bearer #{ENV.fetch("GAUNTLET_PRICING_SECRET", "")}")
-    req.body = body.to_json
-    response = http.request(req)
-    parsed   = JSON.parse(response.body)
-
-    { status: response.code.to_i, body: parsed }
-  rescue Net::OpenTimeout, Net::ReadTimeout, Errno::ECONNREFUSED, Errno::ETIMEDOUT, SocketError, EOFError => e
-    Rails.logger.error("Pricing service unavailable (#{url}): #{e.class} #{e.message}")
-    { status: 500, body: { error: "Pricing service unavailable" } }
-  rescue JSON::ParserError => e
-    Rails.logger.error("Pricing service bad response (#{url}): #{e.message}")
-    { status: 500, body: { error: "Internal pricing error" } }
-  end
-
-  def post_to_houseaccount(body)
-    payload = {
-      name:     body["name"],
-      zip:      body["zip_code"],
-      phone:    body["phone"],
-      summary:  body["job_description"].to_s.truncate(200),
-      estimate: { min: body["estimate_lo"].to_f.round, max: body["estimate_hi"].to_f.round },
-      deadline: body["deadline"].presence || "",
-      comment:  "AI Pricing estimate | mid=$#{body['estimate_midpoint'].to_f.round} | #{body['model_version']}",
-    }
-
-    payload_body = payload.to_json
-    timestamp    = Time.current.to_i.to_s
-    key          = ENV.fetch("HA_SIGNING_SECRET", "")
-    signature    = OpenSSL::HMAC.hexdigest("SHA256", key, "#{timestamp}.#{payload_body}")
-
-    uri  = URI("https://pro.houseparty.dev/api/bookings")
-    http = Net::HTTP.new(uri.host, uri.port)
-    http.use_ssl      = true
-    http.open_timeout = 10
-    http.read_timeout = 10
-
-    req = Net::HTTP::Post.new(uri.path,
-      "Content-Type"  => "application/json",
-      "App-Name"      => ENV.fetch("HA_APP_NAME", "gauntlet"),
-      "App-Timestamp" => timestamp,
-      "App-Signature" => signature,
-    )
-    req.body = payload_body
-    response = http.request(req)
-
-    { status: response.code.to_i, body: JSON.parse(response.body) }
-  rescue => e
-    Rails.logger.error("HouseAccount booking failed: #{e.class} #{e.message}")
-    { status: 502, body: { error: "Booking service unavailable" } }
   end
 
   def render_error(status, message)

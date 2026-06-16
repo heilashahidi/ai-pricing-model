@@ -139,6 +139,65 @@ class PricingControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Malformed JSON", response.parsed_body["error"]
   end
 
+  # ── Book action ────────────────────────────────────────────────────────
+
+  test "book returns 200 when HouseAccount accepts the booking" do
+    stub_request(:post, "https://pro.houseparty.dev/api/bookings")
+      .to_return(status: 201, body: { ok: true, booking_id: "b-123" }.to_json,
+                 headers: { "Content-Type" => "application/json" })
+
+    post "/api/book",
+      params: booking_payload.to_json,
+      headers: { "Content-Type" => "application/json" }
+
+    assert_response 201
+    assert response.parsed_body["ok"]
+  end
+
+  test "book returns 400 for malformed JSON" do
+    post "/api/book",
+      params: "not json {{",
+      headers: { "Content-Type" => "application/json" }
+
+    assert_response 400
+    assert_equal "Malformed JSON", response.parsed_body["error"]
+  end
+
+  %w[name phone zip_code job_description estimate_lo estimate_hi].each do |field|
+    test "book returns 400 when #{field} is missing" do
+      post "/api/book",
+        params: booking_payload(field => nil).to_json,
+        headers: { "Content-Type" => "application/json" }
+
+      assert_response 400
+      assert_equal "#{field} required", response.parsed_body["error"]
+    end
+  end
+
+  test "book returns 502 when HouseAccount is unreachable" do
+    stub_request(:post, "https://pro.houseparty.dev/api/bookings")
+      .to_raise(Errno::ECONNREFUSED)
+
+    post "/api/book",
+      params: booking_payload.to_json,
+      headers: { "Content-Type" => "application/json" }
+
+    assert_response 502
+    assert_equal "Booking service unavailable", response.parsed_body["error"]
+  end
+
+  test "book returns 502 on HouseAccount SSL error" do
+    stub_request(:post, "https://pro.houseparty.dev/api/bookings")
+      .to_raise(OpenSSL::SSL::SSLError)
+
+    post "/api/book",
+      params: booking_payload.to_json,
+      headers: { "Content-Type" => "application/json" }
+
+    assert_response 502
+    assert_equal "Booking service unavailable", response.parsed_body["error"]
+  end
+
   # ── Confidence calibration passthrough ─────────────────────────────────
 
   test "passes OOD low confidence through from pricing service" do
