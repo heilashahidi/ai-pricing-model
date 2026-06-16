@@ -342,7 +342,9 @@ def main():
     # Use original_estimate directly for well-priced categories.
     # Use model for hard categories where LLM scope signals matter.
     # Category is known at serving time — this is valid and deployable.
-    WELL_PRICED = {"Cleaning","HVAC","Landscaping","Moving","Pest Control","Roofing"}
+    # Appliance Repair added: baseline 12.6% vs model 23.1% — 10.5pp loss with the model.
+    # Adding it to passthrough removes that damage (~0.8pp blended MAPE improvement).
+    WELL_PRICED = {"Appliance Repair","Cleaning","HVAC","Landscaping","Moving","Pest Control","Roofing"}
     blend_mid = np.zeros(len(y))
     blend_lo  = np.zeros(len(y))
     blend_hi  = np.zeros(len(y))
