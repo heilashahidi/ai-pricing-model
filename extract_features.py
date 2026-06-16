@@ -33,7 +33,11 @@ EXTRACTION_TOOL = {
             },
             "task_count": {
                 "type": "integer",
-                "description": "Number of distinct tasks or items in the description. Single repair = 1, 'assemble shelf + mount lights + install mat' = 3."
+                "description": "Number of distinct task types. 'Install shutters + patch wall' = 2. 'Install 3 shutters' = 1 (one task type, multiple units)."
+            },
+            "unit_count": {
+                "type": "integer",
+                "description": "Number of physical items/units to work on. 'Install 3 shutters' = 3, 'replace 5 outlets' = 5, 'patch 2 holes' = 2, 'fix faucet' = 1. Counts the items, not the task types."
             },
             "complexity_tier": {
                 "type": "string",
@@ -45,16 +49,16 @@ EXTRACTION_TOOL = {
                 "description": "True if square footage, room count, number of windows, linear feet, or similar area/quantity measure is mentioned."
             }
         },
-        "required": ["labor_only", "task_count", "complexity_tier", "has_area_measure"]
+        "required": ["labor_only", "task_count", "unit_count", "complexity_tier", "has_area_measure"]
     }
 }
 
-DEFAULTS = {"labor_only": False, "task_count": 1, "complexity_tier": "medium", "has_area_measure": False}
+DEFAULTS = {"labor_only": False, "task_count": 1, "unit_count": 1, "complexity_tier": "medium", "has_area_measure": False}
 FIELDNAMES = [
     "job_id", "service_category", "service_subtype", "zip_code",
     "booking_month", "estimate_lo", "estimate_hi", "original_estimate",
     "final_price", "deadline",
-    "labor_only", "task_count", "complexity_tier", "has_area_measure",
+    "labor_only", "task_count", "unit_count", "complexity_tier", "has_area_measure",
     "extraction_ok"
 ]
 

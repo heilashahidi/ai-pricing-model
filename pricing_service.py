@@ -150,17 +150,19 @@ EXTRACTION_TOOL = {
             "labor_only":      {"type": "boolean",
                                 "description": "True if customer supplies all parts/materials."},
             "task_count":      {"type": "integer",
-                                "description": "Number of distinct tasks or items."},
+                                "description": "Number of distinct task types. 'Install shutters + patch wall' = 2. 'Install 3 shutters' = 1 (one task type, multiple units)."},
+            "unit_count":      {"type": "integer",
+                                "description": "Number of physical items to work on. 'Install 3 shutters' = 3, 'replace 5 outlets' = 5, 'fix faucet' = 1. Counts items, not task types."},
             "complexity_tier": {"type": "string", "enum": ["low", "medium", "high"],
                                 "description": "low=simple, medium=moderate, high=multi-trade."},
             "has_area_measure":{"type": "boolean",
                                 "description": "True if sq ft, room count, or linear footage mentioned."},
         },
-        "required": ["labor_only", "task_count", "complexity_tier", "has_area_measure"],
+        "required": ["labor_only", "task_count", "unit_count", "complexity_tier", "has_area_measure"],
     },
 }
 EXTRACTION_DEFAULTS = {
-    "labor_only": False, "task_count": 1,
+    "labor_only": False, "task_count": 1, "unit_count": 1,
     "complexity_tier": "medium", "has_area_measure": False,
 }
 
@@ -1052,7 +1054,9 @@ async def _predict_one(req: PricingRequest, key_name: str) -> PricingResponse:
          lo=round(lo), mid=round(mid), hi=round(hi), confidence=confidence,
          latency_ms=round(latency * 1000), model_version=model_version,
          scope_cached=scope_cached, key_name=key_name,
-         labor_only=scope.get("labor_only"), tasks=scope.get("task_count"))
+         labor_only=scope.get("labor_only"),
+         tasks=scope.get("task_count"),
+         units=scope.get("unit_count"))
 
     _store_estimate(req.job_id, req.service_category, req.zip_code,
                     round(lo, 2), round(hi, 2), round(mid, 2),
