@@ -34,7 +34,7 @@ svc.state.meta = {
     "deadline_map":             {"As soon as possible": 4, "Within 1-2 weeks": 2, "I'm flexible": 0, "": 0},
     "complexity_map":           {"low": 0, "medium": 1, "high": 2},
     "categories":               ["Cleaning", "Handyman", "HVAC", "Plumbing"],
-    "production_categories":    ["Cleaning", "Handyman", "HVAC", "Plumbing"],
+    "production_categories":    ["Cleaning", "Electrical", "Exterior", "HVAC", "Handyman", "Landscaping", "Pest Control", "Plumbing"],
     "well_priced_categories":   ["Cleaning", "HVAC"],
     "training_median_interval": 200,
 }
@@ -61,6 +61,37 @@ class TestFixIntervals(unittest.TestCase):
         self.assertEqual(mid, hi)
 
 
+# ── _resolve_category ────────────────────────────────────────────────────────
+
+class TestResolveCategory(unittest.TestCase):
+    def test_prd_kebab_slug_resolves_to_title_case(self):
+        self.assertEqual(svc._resolve_category("electrical"),        "Electrical")
+        self.assertEqual(svc._resolve_category("pest-control"),      "Pest Control")
+        self.assertEqual(svc._resolve_category("indoor-cleaning"),   "Cleaning")
+        self.assertEqual(svc._resolve_category("exterior-cleaning"), "Exterior")
+        self.assertEqual(svc._resolve_category("landscaping-lawn"),  "Landscaping")
+        self.assertEqual(svc._resolve_category("hvac"),              "HVAC")
+        self.assertEqual(svc._resolve_category("handyman"),          "Handyman")
+        self.assertEqual(svc._resolve_category("plumbing"),          "Plumbing")
+
+    def test_prd_absent_verticals_resolve_to_parent_category(self):
+        self.assertEqual(svc._resolve_category("irrigation"),              "Landscaping")
+        self.assertEqual(svc._resolve_category("tick-mosquito-treatment"), "Pest Control")
+
+    def test_title_case_passes_through_unchanged(self):
+        self.assertEqual(svc._resolve_category("Handyman"),    "Handyman")
+        self.assertEqual(svc._resolve_category("Pest Control"),"Pest Control")
+        self.assertEqual(svc._resolve_category("Cleaning"),    "Cleaning")
+        self.assertEqual(svc._resolve_category("HVAC"),        "HVAC")
+
+    def test_unknown_category_passes_through_unchanged(self):
+        self.assertEqual(svc._resolve_category("Remodeling"),   "Remodeling")
+        self.assertEqual(svc._resolve_category("SomethingNew"), "SomethingNew")
+
+    def test_strips_whitespace(self):
+        self.assertEqual(svc._resolve_category("  handyman  "), "Handyman")
+
+
 # ── compute_confidence ───────────────────────────────────────────────────────
 
 class TestComputeConfidence(unittest.TestCase):
@@ -84,6 +115,14 @@ class TestComputeConfidence(unittest.TestCase):
     def test_ood_cap_non_production_category(self):
         result = svc.compute_confidence(100, 200, 150, "Remodeling")
         self.assertLessEqual(result, 0.40)
+
+    def test_prd_kebab_slug_not_capped_as_ood(self):
+        # PRD-format slugs must resolve to production categories, not get OOD-capped.
+        for slug in ("electrical", "handyman", "plumbing", "pest-control",
+                     "hvac", "indoor-cleaning", "irrigation", "tick-mosquito-treatment"):
+            result = svc.compute_confidence(100, 200, 150, slug)
+            self.assertGreater(result, 0.40,
+                msg=f"'{slug}' should not be OOD-capped but got {result}")
 
     def test_all_three_ood_caps_combined(self):
         result = svc.compute_confidence(1000, 9000, 6000, "Remodeling")

@@ -519,6 +519,11 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("ANTHROPIC_API_KEY not set")
     state.client = anthropic.AsyncAnthropic(api_key=api_key)
 
+    # Auth secret — fail fast so a misconfigured deploy never silently accepts
+    # all requests (empty key store passes nothing through, but silently).
+    if not os.environ.get("GAUNTLET_PRICING_SECRET") and not os.environ.get("API_KEYS"):
+        raise RuntimeError("GAUNTLET_PRICING_SECRET (or API_KEYS) must be set")
+
     # Reliability + auth primitives
     state.circuit_breaker = _CircuitBreaker(threshold=5, timeout=60.0)
     state.rate_limiter    = _RateLimiter()
@@ -735,9 +740,10 @@ def build_feature_vector(req: PricingRequest, scope: dict) -> np.ndarray:
         orig_est = req.original_estimate
     else:
         medians  = meta.get("category_estimate_medians", {})
-        orig_est = medians.get(req.service_category, medians.get("overall", 300.0))
+        orig_est = medians.get(_resolve_category(req.service_category), medians.get("overall", 300.0))
 
-    cat_vec = [1 if req.service_category == c else 0 for c in categories]
+    resolved = _resolve_category(req.service_category)
+    cat_vec = [1 if resolved == c else 0 for c in categories]
     return np.array([[
         labor_only, has_area, task_count, complexity,
         deadline, state_income, orig_est, *cat_vec,
@@ -763,7 +769,7 @@ def compute_confidence(lo: float, hi: float, mid: float, category: str) -> float
         cap = min(cap, 0.40)
     if (hi - lo) > 3 * meta.get("training_median_interval", 212):
         cap = min(cap, 0.45)
-    if category not in set(meta.get("production_categories", [])):
+    if _resolve_category(category) not in set(meta.get("production_categories", [])):
         cap = min(cap, 0.40)
 
     return round(min(base, cap), 4)
@@ -774,10 +780,38 @@ def compute_confidence(lo: float, hi: float, mid: float, category: str) -> float
 # to ~93%), causing actual prices to fall outside the lo/hi range too often.
 _HIGH_VARIANCE_CATEGORIES = {"Handyman", "Plumbing", "Electrical", "Flooring"}
 
+# Maps PRD production-vertical slugs (lowercase-hyphenated, per Appendix A) to
+# the Title Case category names used in training data.  Lets clients that follow
+# the PRD's canonical format ("electrical", "pest-control", etc.) resolve to the
+# correct training category instead of being capped as unknown/OOD.
+_CATEGORY_ALIASES: dict = {
+    "electrical":              "Electrical",
+    "exterior-cleaning":       "Exterior",
+    "handyman":                "Handyman",
+    "hvac":                    "HVAC",
+    "indoor-cleaning":         "Cleaning",
+    "irrigation":              "Landscaping",
+    "landscaping-lawn":        "Landscaping",
+    "pest-control":            "Pest Control",
+    "plumbing":                "Plumbing",
+    "tick-mosquito-treatment": "Pest Control",
+}
+
+
+def _resolve_category(raw: str) -> str:
+    """Normalize a category string to its training Title Case form.
+
+    Accepts both PRD kebab-case slugs (e.g. 'pest-control') and the Title Case
+    strings used in training data (e.g. 'Pest Control').  Unknown values pass
+    through unchanged so OOD detection still fires on truly unknown categories.
+    """
+    normalized = raw.strip().lower().replace(" ", "-")
+    return _CATEGORY_ALIASES.get(normalized, raw)
+
 
 def route_predict(req: PricingRequest, X: np.ndarray) -> tuple[float, float, float]:
     well_priced  = set(state.meta.get("well_priced_categories", []))
-    use_baseline = req.service_category in well_priced and req.original_estimate
+    use_baseline = _resolve_category(req.service_category) in well_priced and req.original_estimate
 
     if use_baseline:
         lo  = req.original_estimate_lo  if req.original_estimate_lo  is not None else req.original_estimate * 0.8
@@ -794,7 +828,7 @@ def route_predict(req: PricingRequest, X: np.ndarray) -> tuple[float, float, flo
     # The CF model produces tighter intervals than the true uncertainty warrants
     # for categories with <20 labeled rows. 25% symmetric widening recovers
     # the coverage gap (97.3% baseline → 93.4% model) without changing the midpoint.
-    if req.service_category in _HIGH_VARIANCE_CATEGORIES:
+    if _resolve_category(req.service_category) in _HIGH_VARIANCE_CATEGORIES:
         spread = (hi - lo) * 0.25
         lo -= spread
         hi += spread
