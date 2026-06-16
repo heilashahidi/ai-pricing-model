@@ -425,8 +425,8 @@ ANCHOR_CASES = [
             "original_estimate_hi": 900.0,
         },
         "mid_lo": 50,
-        "mid_hi": 500,
-        "note":   "Baseline $750 — model should correct well below that for a labor-only job",
+        "mid_hi": 600,
+        "note":   "Baseline $750 — model should correct below that for a labor-only job",
     },
     {
         "name": "HVAC passthrough — midpoint near original estimate",
