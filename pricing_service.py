@@ -455,7 +455,7 @@ async def lifespan(app: FastAPI):
     with open(META_PATH) as f:
         state.meta = json.load(f)
 
-    # Load baseline MAPE for drift alerting
+    # Load training benchmarks from eval_results.json
     if os.path.exists("eval_results.json"):
         with open("eval_results.json") as f:
             _er = json.load(f)
@@ -463,8 +463,25 @@ async def lifespan(app: FastAPI):
             "baseline_mape",
             _er.get("benchmark", {}).get("blended_baseline_mape", 11.6),
         )
+        state.meta["training_benchmarks"] = {
+            "rmse_baseline":          _er.get("baseline",          {}).get("RMSE"),
+            "rmse_routed":            _er.get("routed",             {}).get("RMSE"),
+            "wape_baseline":          _er.get("baseline",          {}).get("WAPE"),
+            "wape_routed":            _er.get("routed",             {}).get("WAPE"),
+            "mape_baseline":          _er.get("baseline",          {}).get("MAPE"),
+            "mape_routed":            _er.get("routed",             {}).get("MAPE"),
+            "bias_baseline":          _er.get("baseline",          {}).get("Bias"),
+            "bias_routed":            _er.get("routed",             {}).get("Bias"),
+            "handyman_rmse_baseline": _er.get("handyman_baseline", {}).get("RMSE"),
+            "handyman_rmse_model":    _er.get("handyman_model",    {}).get("RMSE"),
+            "handyman_wape_baseline": _er.get("handyman_baseline", {}).get("WAPE"),
+            "handyman_wape_model":    _er.get("handyman_model",    {}).get("WAPE"),
+            "handyman_mape_baseline": _er.get("handyman_baseline", {}).get("MAPE"),
+            "handyman_mape_model":    _er.get("handyman_model",    {}).get("MAPE"),
+        }
     else:
         state.meta.setdefault("baseline_mape", 11.6)
+        state.meta.setdefault("training_benchmarks", {})
 
     # Seed model_version if not present in meta.json (first run after adding this field)
     state.meta.setdefault("model_version", "heila-v1.0.0")
@@ -1165,13 +1182,23 @@ def metrics():
             total_outcomes = conn.execute(
                 "SELECT COUNT(*) FROM outcomes"
             ).fetchone()[0]
-            mape_row = conn.execute("""
-                SELECT AVG(ape), COUNT(*) FROM outcomes
-                WHERE ape IS NOT NULL
-                  AND recorded_at >= datetime('now', '-90 days')
+            summary_row = conn.execute("""
+                SELECT
+                  AVG(o.ape),
+                  SQRT(AVG((o.ape / 100.0 * o.final_price) * (o.ape / 100.0 * o.final_price))),
+                  SUM(o.ape / 100.0 * o.final_price) / NULLIF(SUM(o.final_price), 0) * 100,
+                  COUNT(*)
+                FROM outcomes o
+                WHERE o.ape IS NOT NULL
+                  AND o.recorded_at >= datetime('now', '-90 days')
             """).fetchone()
             per_cat = conn.execute("""
-                SELECT e.service_category, AVG(o.ape), COUNT(*)
+                SELECT
+                  e.service_category,
+                  AVG(o.ape),
+                  SQRT(AVG((o.ape / 100.0 * o.final_price) * (o.ape / 100.0 * o.final_price))),
+                  SUM(o.ape / 100.0 * o.final_price) / NULLIF(SUM(o.final_price), 0) * 100,
+                  COUNT(*)
                 FROM outcomes o JOIN estimates e ON o.job_id = e.job_id
                 WHERE o.ape IS NOT NULL
                   AND o.recorded_at >= datetime('now', '-90 days')
@@ -1183,15 +1210,16 @@ def metrics():
             ).fetchone()
 
         cb = state.circuit_breaker
+        rolling_mape = round(summary_row[0], 2) if summary_row[0] else None
+        rolling_rmse = round(summary_row[1], 2) if summary_row[1] else None
+        rolling_wape = round(summary_row[2], 2) if summary_row[2] else None
+        outcomes_90d = summary_row[3]
         return {
             "ok":              True,
             "total_estimates": total_estimates,
             "total_outcomes":  total_outcomes,
-            "rolling_mape_90d": round(mape_row[0], 2) if mape_row[0] else None,
-            "outcomes_90d":    mape_row[1],
             "n_train":         state.meta.get("n_train"),
             "model_version":   state.meta.get("model_version", "heila-v1.0.0"),
-            "baseline_mape":   state.meta.get("baseline_mape", 11.6),
             "retrain_running": state.retrain_running,
             "retrain_threshold": RETRAIN_THRESHOLD,
             "drift_threshold": DRIFT_THRESHOLD,
@@ -1199,14 +1227,27 @@ def metrics():
                 "open":     cb.is_open if cb else False,
                 "failures": cb._failures if cb else 0,
             },
+            "rolling_90d": {
+                "mape": rolling_mape,
+                "rmse": rolling_rmse,
+                "wape": rolling_wape,
+                "n":    outcomes_90d,
+            },
+            "training_benchmarks": state.meta.get("training_benchmarks", {}),
             "last_health_check": {
                 "checked_at":  last_health[0],
                 "mape_30d":    last_health[1],
                 "drift_ratio": last_health[2],
                 "alert_sent":  bool(last_health[3]),
             } if last_health else None,
-            "per_category_mape_90d": [
-                {"category": r[0], "mape": round(r[1], 1), "n": r[2]}
+            "per_category_90d": [
+                {
+                    "category": r[0],
+                    "mape": round(r[1], 1) if r[1] else None,
+                    "rmse": round(r[2], 2) if r[2] else None,
+                    "wape": round(r[3], 2) if r[3] else None,
+                    "n":    r[4],
+                }
                 for r in per_cat
             ],
         }
