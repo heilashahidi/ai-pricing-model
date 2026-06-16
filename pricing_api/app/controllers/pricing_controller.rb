@@ -51,8 +51,9 @@ class PricingController < ApplicationController
     return render_error 400, "Malformed JSON" if body.nil?
     missing = OUTCOME_REQUIRED_FIELDS.find { |field| body[field].blank? }
     return render_error 400, "#{missing} required" if missing
-    valid_price = body["final_price"].is_a?(Numeric) && body["final_price"].positive?
-    return render_error 400, "final_price must be a positive number" unless valid_price
+    price = body["final_price"]
+    return render_error 400, "final_price must be a positive number" unless price.is_a? Numeric
+    return render_error 400, "final_price must be a positive number" unless price.positive?
     result = PricingServiceClient.new.call OUTCOME_SERVICE_URL, body.slice(*OUTCOME_REQUIRED_FIELDS)
     render json: result[:body], status: result[:status]
   end

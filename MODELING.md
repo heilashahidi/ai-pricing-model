@@ -71,14 +71,15 @@ Key finding: **45% of all 1,432 jobs are labor-only** (customer supplies all mat
 
 ### LLM-extracted scope features (Claude Haiku)
 
-Four features are extracted from `job_description` using Claude Haiku with structured tool-use output (guaranteed valid JSON, no parsing failures):
+Five features are extracted from `job_description` using Claude Haiku with structured tool-use output (guaranteed valid JSON, no parsing failures):
 
 | Feature | Type | Description |
 |---------|------|-------------|
 | `labor_only` | bool | True if customer supplies all materials/parts. Examples: "we supply," "you supply," assembly of items the customer already owns. |
 | `task_count` | int | Number of distinct tasks or items in the description. |
+| `unit_count` | int | Number of physical items to work on. "Install 3 shutters" → 3. Extracted and logged but not yet a model input — too few labeled rows to validate signal. |
 | `complexity_tier` | low/med/high → 0/1/2 | Single simple task (low), multiple tasks or moderate skill (medium), multi-trade or large scope (high). |
-| `has_area_measure` | bool | True if square footage, room count, or linear footage is mentioned. |
+| `has_area_measure` | bool | True if explicit square footage, acreage, or linear footage is mentioned. |
 
 **Extraction validation:** Tested against all 14 priced Handyman rows before training. 14/14 correct on `labor_only` — the highest-value feature for the benchmark.
 
@@ -112,9 +113,9 @@ Three independent XGBoost regressors, each using `objective='reg:quantileerror'`
 
 | Model | Quantile | Output |
 |-------|----------|--------|
-| q=0.1 | 10th percentile | `estimate_lo` |
-| q=0.5 | 50th percentile | `estimate_midpoint` |
-| q=0.9 | 90th percentile | `estimate_hi` |
+| q=0.05 | 5th percentile | `estimate_lo` |
+| q=0.50 | 50th percentile | `estimate_midpoint` |
+| q=0.95 | 95th percentile | `estimate_hi` |
 
 **Why three separate models instead of one:** Quantile regression requires a separate loss function per quantile. Three models give independent interval bounds. Post-prediction, monotonicity is enforced: `lo = min(lo_pred, mid_pred)`, `hi = max(hi_pred, mid_pred)`. This prevents interval crossing from independent predictions.
 
@@ -140,8 +141,8 @@ Three independent XGBoost regressors, each using `objective='reg:quantileerror'`
 
 The XGBoost model improves Handyman significantly but degrades well-priced categories (HVAC, Landscaping, Cleaning) where the baseline already achieves 8–10% MAPE with 65–66 training rows each. Rather than blending, the serving layer routes by category:
 
-- **Well-priced categories** (Cleaning, HVAC, Landscaping, Moving, Pest Control, Roofing): return `original_estimate` and its existing bounds directly. The baseline is optimal here.
-- **Hard categories** (Handyman, Appliance Repair, Flooring, Plumbing, and all categories without sufficient training data): use the XGBoost model with a 70/30 blend: `0.7 * model + 0.3 * original_estimate`.
+- **Well-priced categories** (Appliance Repair, Cleaning, HVAC, Landscaping, Moving, Pest Control, Roofing): return `original_estimate` and its existing bounds directly. The baseline is optimal here; the model makes these categories worse.
+- **Hard categories** (Handyman, Electrical, Flooring, Plumbing, and all categories not in the well-priced set): return the XGBoost model output directly. For high-variance categories (Handyman, Plumbing, Electrical, Flooring), a 25% symmetric interval widening is applied post-prediction to restore coverage without shifting the midpoint.
 
 The category is always present in the request payload, so routing is deterministic and adds zero latency.
 
@@ -195,7 +196,7 @@ confidence = min(base_confidence, ood_cap)
 |-----------|-----|-----------|
 | `estimate_midpoint > $5,000` | 0.40 | 95th percentile of training data. The model has minimal signal above this. |
 | Interval > 3× median ($212) | 0.45 | Prediction is highly uncertain regardless of midpoint. |
-| Category not in 10 production verticals | 0.40 | Model was trained on limited data for these categories. |
+| Category not in 8 production verticals | 0.40 | Model was trained on limited data for these categories. |
 
 **Production verticals** (from HouseAccount's current live categories):
 
@@ -272,7 +273,7 @@ Well-priced categories are preserved exactly; the model only intervenes where it
 
 ## Known limitations
 
-**Handyman confidence intervals are too narrow.** LOO-CV coverage for Handyman is 57% against an 80% target. The q=0.1/q=0.9 quantile models underestimate the true spread for variable-scope categories. A future fix: train on wider quantiles (q=0.05/q=0.95) for hard categories, or add a post-hoc interval expansion proportional to `task_count`.
+**Handyman confidence intervals are too narrow.** LOO-CV coverage for Handyman is 57% against an 80% target. The q=0.05/q=0.95 quantile models underestimate the true spread for variable-scope categories. A 25% symmetric post-hoc interval widening is applied to the four high-variance categories (Handyman, Plumbing, Electrical, Flooring), which recovers coverage without shifting the midpoint.
 
 **14 Handyman training rows.** LOO-CV MAPE on 14 rows is statistically noisy — a single outlier swings the metric by ~20 percentage points. The reported 36.2% is the mean across 14 leave-one-out folds, but the distribution is wide. More priced Handyman data is the highest-value thing HouseAccount could add to improve this model.
 

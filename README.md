@@ -108,7 +108,7 @@ GAUNTLET_PRICING_SECRET=<your-secret> bundle exec rails server -p 3000
 python3 integration_test.py
 ```
 
-Expected output: `13/13 passed | 0 failed`
+Expected output: `27/27 passed | 0 failed`
 
 ---
 
@@ -215,7 +215,7 @@ Post-prediction interval crossing is corrected: `lo = min(lo, mid)`, `hi = max(h
 
 ### Routing strategy
 
-For well-priced categories (Cleaning, HVAC, Landscaping, Moving, Pest Control, Roofing), the baseline achieves 8–10% MAPE with 65–95 priced rows each. The model is passed through `original_estimate` directly for these. For hard categories (Handyman, Plumbing, Flooring, Appliance Repair), the XGBoost model is used with a 70/30 blend.
+For well-priced categories (Cleaning, HVAC, Landscaping, Moving, Pest Control, Roofing), the baseline achieves 8–10% MAPE with 65–95 priced rows each. The model is passed through `original_estimate` directly for these. For hard categories (Handyman, Plumbing, Electrical, Flooring), the XGBoost model output is used directly, with 25% symmetric interval widening applied post-prediction to restore coverage.
 
 ### Confidence calibration
 
