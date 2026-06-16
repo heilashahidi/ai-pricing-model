@@ -1474,7 +1474,7 @@
 
       // 3. Baseline row (show if scenario has a baseline and it differs meaningfully)
       const baseline    = _currentBaseline;
-      const hasSaving   = baseline && Math.abs(baseline - mid) / baseline > 0.08;
+      const hasSaving   = !ood && baseline && Math.abs(baseline - mid) / baseline > 0.08;
       const baselineHtml = hasSaving ? `
         <div class="baseline-row">
           <span class="baseline-was">was ${fmt(baseline)}</span>
