@@ -1,24 +1,26 @@
-# README
+# HouseAccount Pricing API
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+Rails 8 API proxy that sits in front of the FastAPI ML service. Handles auth, input validation, CORS, and the HouseAccount staging integration.
 
-Things you may want to cover:
+**Full setup and local development:** see the root [README.md](../README.md).
 
-* Ruby version
+## Routes
 
-* System dependencies
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| POST | `/api/estimate` | None | Public homeowner endpoint — generates a `job_id` and proxies to the ML service |
+| POST | `/api/book` | None | Submits a booking to HouseAccount staging (`pro.houseparty.dev`) |
+| POST | `/.netlify/functions/pricing-estimate` | Bearer | Internal API-to-API estimate endpoint |
+| POST | `/.netlify/functions/pricing-estimate-batch` | Bearer | Batch estimates (up to 50) |
+| POST | `/.netlify/functions/pricing-outcome` | Bearer | Records a final price outcome and triggers retraining |
 
-* Configuration
+## Services
 
-* Database creation
+- `PricingServiceClient` — authenticated HTTP proxy to the FastAPI ML service
+- `HouseAccountBookingService` — HMAC-signed POST to `pro.houseparty.dev/api/bookings`
 
-* Database initialization
+## Tests
 
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+```
+bundle exec rails test
+```
