@@ -5,9 +5,12 @@ class PricingController < ApplicationController
   PUBLIC_REQUIRED_FIELDS  = %w[service_category zip_code job_description].freeze
   OUTCOME_REQUIRED_FIELDS = %w[job_id final_price].freeze
   BOOK_REQUIRED_FIELDS    = %w[name phone zip_code job_description estimate_lo estimate_hi].freeze
-  PRICING_SERVICE_URL     = ENV.fetch("PRICING_SERVICE_URL",  "http://localhost:8001/.netlify/functions/pricing-estimate")
-  BATCH_SERVICE_URL       = ENV.fetch("BATCH_SERVICE_URL",    "http://localhost:8001/.netlify/functions/pricing-estimate-batch")
-  OUTCOME_SERVICE_URL     = ENV.fetch("OUTCOME_SERVICE_URL",  "http://localhost:8001/.netlify/functions/pricing-outcome")
+  PRICING_SERVICE_URL = ENV.fetch("PRICING_SERVICE_URL",
+    "http://localhost:8001/.netlify/functions/pricing-estimate")
+  BATCH_SERVICE_URL   = ENV.fetch("BATCH_SERVICE_URL",
+    "http://localhost:8001/.netlify/functions/pricing-estimate-batch")
+  OUTCOME_SERVICE_URL = ENV.fetch("OUTCOME_SERVICE_URL",
+    "http://localhost:8001/.netlify/functions/pricing-outcome")
 
   def public_estimate
     body = parse_body
@@ -48,7 +51,8 @@ class PricingController < ApplicationController
     return render_error 400, "Malformed JSON" if body.nil?
     missing = OUTCOME_REQUIRED_FIELDS.find { |field| body[field].blank? }
     return render_error 400, "#{missing} required" if missing
-    return render_error 400, "final_price must be a positive number" unless body["final_price"].is_a?(Numeric) && body["final_price"].positive?
+    valid_price = body["final_price"].is_a?(Numeric) && body["final_price"].positive?
+    return render_error 400, "final_price must be a positive number" unless valid_price
     result = PricingServiceClient.new.call OUTCOME_SERVICE_URL, body.slice(*OUTCOME_REQUIRED_FIELDS)
     render json: result[:body], status: result[:status]
   end

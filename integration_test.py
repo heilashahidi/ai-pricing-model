@@ -514,6 +514,48 @@ for case in ANCHOR_CASES:
     check(case["name"], ok, detail)
 
 
+# ── Section 6: Batch endpoint ──────────────────────────────────────────────
+
+print("\n── Section 6: Batch endpoint ──────────────────────────────")
+
+BATCH_ENDPOINT = f"{RAILS_URL}/.netlify/functions/pricing-estimate-batch"
+
+BATCH_PAYLOAD = {
+    "estimates": [
+        {
+            "job_id":            "batch-001",
+            "service_category":  "Handyman",
+            "zip_code":          "33484",
+            "job_description":   "Install 3 supplied exterior shutters — labor only.",
+            "original_estimate": 750.0,
+        },
+        {
+            "job_id":            "batch-002",
+            "service_category":  "HVAC",
+            "zip_code":          "78704",
+            "job_description":   "AC not cooling. Needs refrigerant recharge.",
+            "original_estimate": 350.0,
+        },
+    ]
+}
+
+status, body = post(BATCH_ENDPOINT, BATCH_PAYLOAD)
+check("Batch: missing auth → 401", status == 401)
+
+status, body = post(BATCH_ENDPOINT, BATCH_PAYLOAD, auth_headers())
+if status != 200:
+    check("Batch: valid request → 200", False, f"HTTP {status}: {body}")
+else:
+    results_list = body.get("results", [])
+    check("Batch: returns results array",     isinstance(results_list, list) and len(results_list) == 2)
+    check("Batch: each result has ok=true",   all(r.get("ok") for r in results_list))
+    check("Batch: each result has midpoint",  all("estimate_midpoint" in r for r in results_list))
+    check("Batch: each result has confidence",all("confidence" in r for r in results_list))
+    check("Batch: intervals valid",
+          all(r["estimate_lo"] <= r["estimate_midpoint"] <= r["estimate_hi"]
+              for r in results_list))
+
+
 # ── Summary ────────────────────────────────────────────────────────────────
 
 total  = len(results)

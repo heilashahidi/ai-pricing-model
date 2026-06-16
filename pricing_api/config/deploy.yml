@@ -1,3 +1,6 @@
+# NOTE: This project deploys to Railway, not Kamal. See DEPLOY.md for the actual
+# deployment process. This file is the Rails scaffold default and is not used.
+
 # Name of your application. Used to uniquely configure containers.
 service: pricing_api
 
@@ -7,7 +10,7 @@ image: pricing_api
 # Deploy to these servers.
 servers:
   web:
-    - 192.168.0.1
+    - 192.168.0.1  # placeholder — not used; see DEPLOY.md
   # job:
   #   hosts:
   #     - 192.168.0.1

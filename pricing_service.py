@@ -632,7 +632,7 @@ class PricingRequest(BaseModel):
     job_id:               str
     service_category:     str
     zip_code:             str
-    job_description:      str             = Field(max_length=4000)
+    job_description:      str             = Field(min_length=1, max_length=4000)
     service_subtype:      Optional[str]   = None
     deadline:             Optional[str]   = None
     booking_month:        Optional[str]   = None

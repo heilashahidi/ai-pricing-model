@@ -264,6 +264,11 @@ class TestModelBenchmarks(unittest.TestCase):
         self.assertLess(mape, 15.0,
             f"Blended MAPE {mape:.2f}% exceeds 15% hard ceiling — model may be broken")
 
+    def test_handyman_blended_mape_below_prd_ceiling(self):
+        mape = self.r["handyman_blended"]["MAPE"]
+        self.assertLess(mape, 40.0,
+            f"Handyman blended MAPE {mape:.2f}% exceeded PRD ceiling of 40%")
+
 
 if __name__ == "__main__":
     unittest.main()

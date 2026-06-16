@@ -198,6 +198,115 @@ class PricingControllerTest < ActionDispatch::IntegrationTest
     assert_equal "Booking service unavailable", response.parsed_body["error"]
   end
 
+  # ── estimate_batch ─────────────────────────────────────────────────────
+
+  test "estimate_batch returns 401 without auth" do
+    post "/.netlify/functions/pricing-estimate-batch",
+      params: { estimates: [ pricing_payload ] }.to_json,
+      headers: { "Content-Type" => "application/json" }
+
+    assert_response 401
+  end
+
+  test "estimate_batch returns 405 for GET" do
+    get "/.netlify/functions/pricing-estimate-batch",
+      headers: auth_header
+
+    assert_response 405
+    assert_equal "Method not allowed", response.parsed_body["error"]
+  end
+
+  test "estimate_batch returns 400 when estimates is missing" do
+    post "/.netlify/functions/pricing-estimate-batch",
+      params: {}.to_json,
+      headers: auth_header.merge("Content-Type" => "application/json")
+
+    assert_response 400
+    assert_equal "estimates required", response.parsed_body["error"]
+  end
+
+  test "estimate_batch returns 400 when estimates is not an array" do
+    post "/.netlify/functions/pricing-estimate-batch",
+      params: { estimates: "not-an-array" }.to_json,
+      headers: auth_header.merge("Content-Type" => "application/json")
+
+    assert_response 400
+    assert_equal "estimates must be an array", response.parsed_body["error"]
+  end
+
+  test "estimate_batch proxies to batch service and returns result" do
+    stub_request(:post, "http://localhost:8001/.netlify/functions/pricing-estimate-batch")
+      .to_return(status: 200,
+                 body: { ok: true, results: [ { ok: true, estimate_midpoint: 200.0 } ] }.to_json,
+                 headers: { "Content-Type" => "application/json" })
+
+    post "/.netlify/functions/pricing-estimate-batch",
+      params: { estimates: [ pricing_payload ] }.to_json,
+      headers: auth_header.merge("Content-Type" => "application/json")
+
+    assert_response 200
+    assert response.parsed_body["ok"]
+  end
+
+  # ── outcome ────────────────────────────────────────────────────────────
+
+  test "outcome returns 401 without auth" do
+    post "/.netlify/functions/pricing-outcome",
+      params: { job_id: "abc", final_price: 250.0 }.to_json,
+      headers: { "Content-Type" => "application/json" }
+
+    assert_response 401
+  end
+
+  test "outcome returns 405 for GET" do
+    get "/.netlify/functions/pricing-outcome",
+      headers: auth_header
+
+    assert_response 405
+    assert_equal "Method not allowed", response.parsed_body["error"]
+  end
+
+  test "outcome returns 400 when job_id is missing" do
+    post "/.netlify/functions/pricing-outcome",
+      params: { final_price: 250.0 }.to_json,
+      headers: auth_header.merge("Content-Type" => "application/json")
+
+    assert_response 400
+    assert_equal "job_id required", response.parsed_body["error"]
+  end
+
+  test "outcome returns 400 when final_price is missing" do
+    post "/.netlify/functions/pricing-outcome",
+      params: { job_id: "abc" }.to_json,
+      headers: auth_header.merge("Content-Type" => "application/json")
+
+    assert_response 400
+    assert_equal "final_price required", response.parsed_body["error"]
+  end
+
+  test "outcome returns 400 when final_price is not a positive number" do
+    post "/.netlify/functions/pricing-outcome",
+      params: { job_id: "abc", final_price: -50.0 }.to_json,
+      headers: auth_header.merge("Content-Type" => "application/json")
+
+    assert_response 400
+    assert_equal "final_price must be a positive number", response.parsed_body["error"]
+  end
+
+  test "outcome proxies to outcome service on valid request" do
+    stub_request(:post, "http://localhost:8001/.netlify/functions/pricing-outcome")
+      .to_return(status: 200,
+                 body: { ok: true }.to_json,
+                 headers: { "Content-Type" => "application/json" })
+
+    post "/.netlify/functions/pricing-outcome",
+      params: { job_id: "abc-123", final_price: 250.0 }.to_json,
+      headers: auth_header.merge("Content-Type" => "application/json")
+
+    assert_response 200
+    assert response.parsed_body["ok"]
+  end
+
   # ── Confidence calibration passthrough ─────────────────────────────────
 
   test "passes OOD low confidence through from pricing service" do

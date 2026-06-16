@@ -36,6 +36,7 @@ class HouseAccountBookingService
 private
 
   def build_payload(body)
+    mid = body["estimate_midpoint"].to_f.round
     {
       name:     body["name"],
       zip:      body["zip_code"],
@@ -43,7 +44,7 @@ private
       summary:  body["job_description"].to_s.truncate(200),
       estimate: { min: body["estimate_lo"].to_f.round, max: body["estimate_hi"].to_f.round },
       deadline: body["deadline"].presence || "",
-      comment:  "AI Pricing estimate | mid=$#{body['estimate_midpoint'].to_f.round} | #{body['model_version']}",
+      comment:  "AI Pricing estimate | mid=$#{mid} | #{body['model_version']}",
     }
   end
 
