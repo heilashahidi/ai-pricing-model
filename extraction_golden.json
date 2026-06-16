@@ -1,0 +1,102 @@
+[
+  {
+    "id": "handyman-shutters-labor",
+    "description": "Install 3 supplied exterior shutters. We supply all shutters and hardware — labor only.",
+    "expected": {"labor_only": true, "task_count": 1, "complexity_tier": "low", "has_area_measure": false}
+  },
+  {
+    "id": "handyman-fan-supplied",
+    "description": "Install 2 ceiling fans I already purchased. I have all the parts — just need someone to install them.",
+    "expected": {"labor_only": true, "task_count": 2, "complexity_tier": "low", "has_area_measure": false}
+  },
+  {
+    "id": "handyman-tv-mount-labor",
+    "description": "Mount a 65-inch TV on drywall wall. I provide the TV mount and all hardware — just need installation.",
+    "expected": {"labor_only": true, "task_count": 1, "complexity_tier": "low", "has_area_measure": false}
+  },
+  {
+    "id": "handyman-mixed-repairs",
+    "description": "4 small repairs: patch drywall hole in hallway, fix loose door hinge, replace 2 light switches, caulk around bathtub.",
+    "expected": {"labor_only": false, "task_count": 4, "complexity_tier": "medium", "has_area_measure": false}
+  },
+  {
+    "id": "plumbing-faucets-supplied",
+    "description": "Replace kitchen faucet and two bathroom faucets. Customer supplies all three faucets and supply lines.",
+    "expected": {"labor_only": true, "task_count": 3, "complexity_tier": "medium", "has_area_measure": false}
+  },
+  {
+    "id": "plumbing-drip-simple",
+    "description": "Fix dripping kitchen faucet. The shut-off valve won't fully close either.",
+    "expected": {"labor_only": false, "task_count": 2, "complexity_tier": "low", "has_area_measure": false}
+  },
+  {
+    "id": "cleaning-house-sqft",
+    "description": "Deep clean entire 3 bedroom 2 bathroom house, approximately 1,400 square feet.",
+    "expected": {"labor_only": false, "task_count": 1, "complexity_tier": "medium", "has_area_measure": true}
+  },
+  {
+    "id": "cleaning-one-bathroom",
+    "description": "Deep clean master bathroom only. Move-out condition, just one bathroom.",
+    "expected": {"labor_only": false, "task_count": 1, "complexity_tier": "low", "has_area_measure": false}
+  },
+  {
+    "id": "hvac-refrigerant",
+    "description": "AC stopped cooling. 5-year-old Lennox unit, 3-bedroom home. Needs refrigerant recharge and inspection.",
+    "expected": {"labor_only": false, "task_count": 2, "complexity_tier": "medium", "has_area_measure": false}
+  },
+  {
+    "id": "pest-bed-bugs",
+    "description": "Bed bug heat treatment needed for a 2-bedroom apartment. Found primarily in the main bedroom.",
+    "expected": {"labor_only": false, "task_count": 1, "complexity_tier": "high", "has_area_measure": false}
+  },
+  {
+    "id": "pest-general",
+    "description": "General pest control treatment for entire home. Ants and roaches. 3-bedroom house.",
+    "expected": {"labor_only": false, "task_count": 1, "complexity_tier": "low", "has_area_measure": false}
+  },
+  {
+    "id": "flooring-sqft-labor",
+    "description": "Install hardwood flooring in living room, approximately 300 square feet. I supply all the flooring materials.",
+    "expected": {"labor_only": true, "task_count": 1, "complexity_tier": "medium", "has_area_measure": true}
+  },
+  {
+    "id": "painting-sqft",
+    "description": "Paint interior walls of 3 bedrooms, approximately 1,000 square feet total wall surface area.",
+    "expected": {"labor_only": false, "task_count": 1, "complexity_tier": "medium", "has_area_measure": true}
+  },
+  {
+    "id": "landscaping-acre",
+    "description": "Weekly lawn mowing and edging for front and back yard, approximately 0.25 acres total.",
+    "expected": {"labor_only": false, "task_count": 2, "complexity_tier": "low", "has_area_measure": true}
+  },
+  {
+    "id": "moving-2br",
+    "description": "Move 2-bedroom apartment contents to a new location 5 miles away. Both locations are on the ground floor.",
+    "expected": {"labor_only": false, "task_count": 1, "complexity_tier": "medium", "has_area_measure": false}
+  },
+  {
+    "id": "exterior-power-wash",
+    "description": "Power wash entire house exterior, front walkway, and driveway.",
+    "expected": {"labor_only": false, "task_count": 3, "complexity_tier": "medium", "has_area_measure": false}
+  },
+  {
+    "id": "electrical-outlets-circuit",
+    "description": "Install 4 new electrical outlets in the garage and add a dedicated 20-amp circuit for power tools.",
+    "expected": {"labor_only": false, "task_count": 2, "complexity_tier": "medium", "has_area_measure": false}
+  },
+  {
+    "id": "remodel-bathroom-sqft",
+    "description": "Full bathroom remodel: new shower, vanity, and tile floor. Approximately 80 square feet.",
+    "expected": {"labor_only": false, "task_count": 3, "complexity_tier": "high", "has_area_measure": true}
+  },
+  {
+    "id": "roofing-shingles",
+    "description": "Replace 5 missing shingles on asphalt roof. 10-year-old roof on a single-story home.",
+    "expected": {"labor_only": false, "task_count": 1, "complexity_tier": "low", "has_area_measure": false}
+  },
+  {
+    "id": "appliance-fridge",
+    "description": "Samsung refrigerator not cooling. Model RF28R7351SR, 3 years old. Food is spoiling.",
+    "expected": {"labor_only": false, "task_count": 1, "complexity_tier": "medium", "has_area_measure": false}
+  }
+]

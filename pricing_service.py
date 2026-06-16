@@ -644,6 +644,7 @@ class PricingResponse(BaseModel):
     estimate_midpoint: float
     confidence:        float = Field(ge=0.0, le=1.0)
     model_version:     str
+    scope:             Optional[dict] = None
 
 class BatchPricingRequest(BaseModel):
     estimates: list[PricingRequest] = Field(min_length=1, max_length=50)
@@ -1084,6 +1085,13 @@ async def _predict_one(req: PricingRequest, key_name: str) -> PricingResponse:
         estimate_lo=round(lo, 2), estimate_hi=round(hi, 2),
         estimate_midpoint=round(mid, 2), confidence=confidence,
         model_version=model_version,
+        scope={
+            "labor_only":      scope.get("labor_only", False),
+            "task_count":      scope.get("task_count", 1),
+            "unit_count":      scope.get("unit_count", 1),
+            "complexity_tier": scope.get("complexity_tier", "medium"),
+            "has_area_measure":scope.get("has_area_measure", False),
+        },
     )
 
 

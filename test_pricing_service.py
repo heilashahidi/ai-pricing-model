@@ -195,5 +195,36 @@ class TestExtractScopeDefaults(unittest.IsolatedAsyncioTestCase):
         )
 
 
+# ── Model regression benchmarks ──────────────────────────────────────────────
+
+class TestModelBenchmarks(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        with open("eval_results.json") as f:
+            cls.r = json.load(f)
+
+    def test_routed_beats_baseline_mape(self):
+        routed   = self.r["routed"]["MAPE"]
+        baseline = self.r["baseline"]["MAPE"]
+        self.assertLess(routed, baseline,
+            f"Routed MAPE {routed:.2f}% regressed past baseline {baseline:.2f}%")
+
+    def test_handyman_model_beats_baseline_mape(self):
+        model    = self.r["handyman_model"]["MAPE"]
+        baseline = self.r["handyman_baseline"]["MAPE"]
+        self.assertLess(model, baseline,
+            f"Handyman model MAPE {model:.2f}% regressed past baseline {baseline:.2f}%")
+
+    def test_coverage_above_floor(self):
+        coverage = self.r["routed"]["Coverage"]
+        self.assertGreater(coverage, 90.0,
+            f"Prediction interval coverage {coverage:.1f}% dropped below 90% floor")
+
+    def test_blended_mape_below_hard_ceiling(self):
+        mape = self.r["routed"]["MAPE"]
+        self.assertLess(mape, 15.0,
+            f"Blended MAPE {mape:.2f}% exceeds 15% hard ceiling — model may be broken")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -285,40 +285,6 @@
       margin-top: .5rem;
     }
 
-    .range-row {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      gap: .5rem;
-      align-items: center;
-      margin-bottom: 1rem;
-    }
-    .range-bound {
-      background: var(--surface-2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: .75rem;
-      text-align: center;
-    }
-    .range-bound-label {
-      font-size: .6rem;
-      font-weight: 700;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: var(--text-3);
-      margin-bottom: .25rem;
-    }
-    .range-bound-val {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: var(--text-2);
-      letter-spacing: -.02em;
-    }
-    .range-sep {
-      color: var(--text-3);
-      font-size: .875rem;
-      padding: 0 .125rem;
-    }
-
     /* ── Confidence ── */
     .conf-section { margin-bottom: 1rem; }
     .conf-header {
@@ -421,6 +387,96 @@
       height: 1px;
       background: var(--border-soft);
       margin: 0 1.5rem 1.25rem;
+    }
+
+    /* ── Skeleton loader ── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: var(--radius-sm);
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    /* ── Scope pills ── */
+    .scope-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .375rem;
+      margin-bottom: .875rem;
+    }
+    .scope-pill {
+      font-size: .68rem;
+      font-weight: 600;
+      letter-spacing: .03em;
+      padding: .25rem .625rem;
+      border-radius: 20px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+    }
+    .scope-pill.highlight {
+      background: var(--accent-dim);
+      border-color: rgba(99,102,241,.3);
+      color: var(--accent);
+    }
+
+    /* ── Visual price range bar ── */
+    .range-bar-wrap {
+      margin-bottom: 1rem;
+    }
+    .range-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: .375rem;
+    }
+    .range-bar-bound {
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--text-2);
+    }
+    .range-bar-bound span {
+      display: block;
+      font-size: .6rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      margin-bottom: .1rem;
+    }
+    .range-bar-track {
+      position: relative;
+      height: 8px;
+      background: var(--surface-3);
+      border-radius: 100px;
+      border: 1px solid var(--border-soft);
+    }
+    .range-bar-fill {
+      position: absolute;
+      top: 0; bottom: 0;
+      background: linear-gradient(90deg, rgba(99,102,241,.4), var(--accent));
+      border-radius: 100px;
+    }
+    .range-bar-midpoint {
+      position: absolute;
+      top: 50%;
+      width: 14px; height: 14px;
+      background: var(--accent);
+      border: 2px solid var(--bg);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    /* ── Field error ── */
+    .field-error {
+      font-size: .72rem;
+      color: var(--danger);
+      margin-top: .3rem;
+    }
+    input.invalid, select.invalid, textarea.invalid {
+      border-color: var(--danger) !important;
+      box-shadow: 0 0 0 3px rgba(239,68,68,.15) !important;
     }
 
     /* ── Scenario cards ── */
@@ -926,9 +982,7 @@
     document.querySelectorAll('.scenario-card').forEach((c, i) =>
       c.classList.toggle('active', i === idx)
     );
-    // Reset result panel
-    document.getElementById('empty-state').style.display    = 'flex';
-    document.getElementById('result-content').style.display = 'none';
+    getPricing();
   }
 
   const PROMPTS = {
@@ -1045,23 +1099,44 @@
     return 'Good estimate, but scope has some uncertainty. Provider may confirm details before finalizing price.';
   }
 
+  function showFieldError(id, msg) {
+    const el = document.getElementById(id);
+    el.classList.add('invalid');
+    const existing = el.nextElementSibling;
+    if (!existing || !existing.classList.contains('field-error')) {
+      el.insertAdjacentHTML('afterend', `<div class="field-error">${msg}</div>`);
+    }
+    setTimeout(() => {
+      el.classList.remove('invalid');
+      const err = el.nextElementSibling;
+      if (err?.classList.contains('field-error')) err.remove();
+    }, 3000);
+  }
+
   async function getPricing() {
     const category = document.getElementById('service_category').value;
     const desc     = document.getElementById('job_description').value.trim();
     const zip      = document.getElementById('zip_code').value.trim();
     const deadline = document.getElementById('deadline').value;
 
-    if (!category || !desc || !zip) {
-      alert('Service Category, Job Description, and ZIP Code are required.');
-      return;
-    }
+    let valid = true;
+    if (!category) { showFieldError('service_category', 'Select a service category.'); valid = false; }
+    if (!desc)     { showFieldError('job_description',  'Describe the job.'); valid = false; }
+    if (!zip)      { showFieldError('zip_code',         'Enter a ZIP code.'); valid = false; }
+    if (!valid) return;
 
     const btn = document.getElementById('submit-btn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span>Estimating…';
 
-    document.getElementById('empty-state').style.display   = 'none';
-    document.getElementById('result-content').style.display = 'none';
+    document.getElementById('empty-state').style.display    = 'none';
+    document.getElementById('result-content').innerHTML = `
+      <div class="skeleton" style="height:120px;margin-bottom:1rem"></div>
+      <div class="skeleton" style="height:8px;margin-bottom:1rem"></div>
+      <div class="skeleton" style="height:60px;margin-bottom:.75rem"></div>
+      <div class="skeleton" style="height:40px"></div>
+    `;
+    document.getElementById('result-content').style.display = 'block';
 
     const payload = { service_category: category, zip_code: zip, job_description: desc };
     if (deadline) payload.deadline = deadline;
@@ -1091,27 +1166,47 @@
       const ood   = conf < 0.5;
       const tier  = confTier(conf);
 
+      // scope pills
+      const s = data.scope || {};
+      const pills = [];
+      if (s.labor_only)        pills.push({ label: 'Labor only', highlight: true });
+      if (s.task_count > 1)    pills.push({ label: `${s.task_count} tasks`, highlight: false });
+      if (s.unit_count > 1)    pills.push({ label: `${s.unit_count} units`, highlight: false });
+      if (s.has_area_measure)  pills.push({ label: 'Area-based', highlight: false });
+      if (s.complexity_tier && s.complexity_tier !== 'medium')
+        pills.push({ label: s.complexity_tier.charAt(0).toUpperCase() + s.complexity_tier.slice(1) + ' complexity', highlight: s.complexity_tier === 'high' });
+      const pillsHtml = pills.length ? `<div class="scope-pills">${
+        pills.map(p => `<span class="scope-pill${p.highlight ? ' highlight' : ''}">${p.label}</span>`).join('')
+      }</div>` : '';
+
+      // range bar (scale 0–max(hi*1.4, 500), clamped visually)
+      const scale = Math.max(hi * 1.4, 500);
+      const fillLeft  = (lo / scale * 100).toFixed(1);
+      const fillRight = (100 - hi / scale * 100).toFixed(1);
+      const midPos    = (mid / scale * 100).toFixed(1);
+
       document.getElementById('result-content').innerHTML = `
         ${ood ? `<div class="ood-badge">
           <svg width="12" height="12" fill="none" viewBox="0 0 16 16" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M8 5v4m0 2.5v.5"/><circle cx="8" cy="8" r="6.5"/></svg>
           Out of distribution
         </div>` : ''}
 
+        ${pillsHtml}
+
         <div class="mid-block">
-          <div class="mid-label">Point Estimate</div>
+          <div class="mid-label">Best Estimate</div>
           <div class="mid-price">${fmt(mid)}</div>
           <div class="mid-sub">Midpoint of predicted range</div>
         </div>
 
-        <div class="range-row">
-          <div class="range-bound">
-            <div class="range-bound-label">Low</div>
-            <div class="range-bound-val">${fmt(lo)}</div>
+        <div class="range-bar-wrap">
+          <div class="range-bar-labels">
+            <div class="range-bar-bound"><span>Low</span>${fmt(lo)}</div>
+            <div class="range-bar-bound" style="text-align:right"><span>High</span>${fmt(hi)}</div>
           </div>
-          <div class="range-sep">→</div>
-          <div class="range-bound">
-            <div class="range-bound-label">High</div>
-            <div class="range-bound-val">${fmt(hi)}</div>
+          <div class="range-bar-track">
+            <div class="range-bar-fill" style="left:${fillLeft}%;right:${fillRight}%"></div>
+            <div class="range-bar-midpoint" style="left:${midPos}%"></div>
           </div>
         </div>
 

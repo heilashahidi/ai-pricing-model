@@ -405,6 +405,115 @@ for case in STAGING_CASES:
     check(f"HouseAccount staging: {case['name']}", ok, detail)
 
 
+# ── Section 5: Price anchor tests ─────────────────────────────────────────
+# Behavioral regression gate. Each case asserts the midpoint stays in a known
+# sane range for a fixed input. Fails if a model change or routing logic
+# change makes a well-known job return an implausible price.
+
+print("\n── Section 5: Price anchor tests ─────────────────────────")
+
+ANCHOR_CASES = [
+    {
+        "name": "Labor-only shutters — model corrects down from $750 baseline",
+        "payload": {
+            "job_id":            "anchor-handyman-shutters",
+            "service_category":  "Handyman",
+            "zip_code":          "33484",
+            "job_description":   "Install 3 supplied exterior shutters. We supply all shutters and hardware — labor only.",
+            "original_estimate": 750.0,
+            "original_estimate_lo": 600.0,
+            "original_estimate_hi": 900.0,
+        },
+        "mid_lo": 50,
+        "mid_hi": 500,
+        "note":   "Baseline $750 — model should correct well below that for a labor-only job",
+    },
+    {
+        "name": "HVAC passthrough — midpoint near original estimate",
+        "payload": {
+            "job_id":            "anchor-hvac-recharge",
+            "service_category":  "HVAC",
+            "zip_code":          "78704",
+            "job_description":   "AC stopped cooling. 5-year-old Lennox unit. Needs refrigerant recharge and inspection.",
+            "original_estimate": 350.0,
+            "original_estimate_lo": 280.0,
+            "original_estimate_hi": 420.0,
+        },
+        "mid_lo": 100,
+        "mid_hi": 600,
+        "note":   "Well-priced category — expect midpoint in normal HVAC service range",
+    },
+    {
+        "name": "Single bathroom deep clean — under $300",
+        "payload": {
+            "job_id":            "anchor-cleaning-bathroom",
+            "service_category":  "Cleaning",
+            "zip_code":          "78704",
+            "job_description":   "Deep clean master bathroom only. Move-out condition, just one bathroom.",
+            "original_estimate": 200.0,
+        },
+        "mid_lo": 50,
+        "mid_hi": 300,
+        "note":   "Single-room scope — full-home rate would be a regression",
+    },
+    {
+        "name": "Dripping faucet repair — under $400",
+        "payload": {
+            "job_id":            "anchor-plumbing-drip",
+            "service_category":  "Plumbing",
+            "zip_code":          "33484",
+            "job_description":   "Fix dripping kitchen faucet. Shut-off valve won't fully close.",
+            "original_estimate": 175.0,
+        },
+        "mid_lo": 50,
+        "mid_hi": 400,
+        "note":   "Simple repair — $500+ midpoint would indicate model is broken for Plumbing",
+    },
+    {
+        "name": "Pest control — general treatment in normal range",
+        "payload": {
+            "job_id":            "anchor-pest-general",
+            "service_category":  "Pest Control",
+            "zip_code":          "33324",
+            "job_description":   "General pest control treatment for entire home. Ants and roaches. 3-bedroom house.",
+            "original_estimate": 180.0,
+        },
+        "mid_lo": 50,
+        "mid_hi": 400,
+        "note":   "Well-calibrated category (65 training rows, 10.2% baseline MAPE)",
+    },
+    {
+        "name": "Bed bug heat treatment — high-cost job in expected range",
+        "payload": {
+            "job_id":            "anchor-pest-bedbug",
+            "service_category":  "Pest Control",
+            "zip_code":          "33324",
+            "job_description":   "Bed bug heat treatment for a 2-bedroom apartment. Found in main bedroom and living room.",
+            "original_estimate": 1200.0,
+        },
+        "mid_lo": 400,
+        "mid_hi": 3000,
+        "note":   "Heat treatment is expensive — under $400 would indicate model failing to capture scope",
+    },
+]
+
+for case in ANCHOR_CASES:
+    status, body = post(ENDPOINT, case["payload"], auth_headers())
+
+    if status != 200:
+        check(case["name"], False, f"HTTP {status}: {body}")
+        continue
+
+    mid = body.get("estimate_midpoint", 0)
+    lo  = case["mid_lo"]
+    hi  = case["mid_hi"]
+    ok  = lo <= mid <= hi
+    detail = f"mid=${mid:.0f}  expected ${lo}–${hi}"
+    if not ok:
+        detail += f"  ({case['note']})"
+    check(case["name"], ok, detail)
+
+
 # ── Summary ────────────────────────────────────────────────────────────────
 
 total  = len(results)
