@@ -8,24 +8,24 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:          #0a0a0f;
-      --surface:     #111118;
-      --surface-2:   #18181f;
-      --surface-3:   #1e1e28;
-      --border:      #2a2a38;
-      --border-soft: #1f1f2a;
+      --bg:          #f6f6fb;
+      --surface:     #ffffff;
+      --surface-2:   #f0f0f8;
+      --surface-3:   #e8e8f2;
+      --border:      #d4d4e8;
+      --border-soft: #e0e0f0;
       --accent:      #6366f1;
-      --accent-dim:  rgba(99,102,241,.12);
-      --accent-glow: rgba(99,102,241,.25);
-      --text:        #e8e8f0;
-      --text-2:      #9898b0;
-      --text-3:      #5c5c78;
-      --success:     #22c55e;
-      --success-dim: rgba(34,197,94,.12);
-      --warn:        #f59e0b;
-      --warn-dim:    rgba(245,158,11,.12);
-      --danger:      #ef4444;
-      --danger-dim:  rgba(239,68,68,.12);
+      --accent-dim:  rgba(99,102,241,.10);
+      --accent-glow: rgba(99,102,241,.20);
+      --text:        #111118;
+      --text-2:      #44446a;
+      --text-3:      #8888aa;
+      --success:     #16a34a;
+      --success-dim: rgba(22,163,74,.10);
+      --warn:        #c2800a;
+      --warn-dim:    rgba(194,128,10,.10);
+      --danger:      #dc2626;
+      --danger-dim:  rgba(220,38,38,.10);
       --radius:      12px;
       --radius-sm:   8px;
     }
@@ -48,7 +48,7 @@
       justify-content: space-between;
       position: sticky;
       top: 0;
-      background: rgba(10,10,15,.85);
+      background: rgba(246,246,251,.92);
       backdrop-filter: blur(12px);
       z-index: 10;
     }
@@ -145,7 +145,7 @@
       appearance: none;
     }
     input::placeholder, textarea::placeholder { color: var(--text-3); }
-    input:hover:not(:focus), select:hover:not(:focus), textarea:hover:not(:focus) { border-color: #3a3a4c; }
+    input:hover:not(:focus), select:hover:not(:focus), textarea:hover:not(:focus) { border-color: #b8b8d8; }
     input:focus, select:focus, textarea:focus {
       outline: none;
       border-color: var(--accent);
@@ -153,13 +153,13 @@
       box-shadow: 0 0 0 3px var(--accent-glow);
     }
     select {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235c5c78' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238888aa' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right .875rem center;
       padding-right: 2.25rem;
       cursor: pointer;
     }
-    select option { background: #1e1e28; }
+    select option { background: #ffffff; }
     textarea { resize: vertical; min-height: 88px; line-height: 1.5; }
 
     /* ── Buttons ── */
@@ -397,7 +397,7 @@
     /* ── Result: price display ── */
     .result-content { padding: 0 1.5rem 1.5rem; }
     .mid-block {
-      background: linear-gradient(135deg, rgba(99,102,241,.15) 0%, rgba(99,102,241,.05) 100%);
+      background: linear-gradient(135deg, rgba(99,102,241,.08) 0%, rgba(99,102,241,.03) 100%);
       border: 1px solid rgba(99,102,241,.3);
       border-radius: var(--radius);
       padding: 1.25rem 1.5rem;
@@ -410,7 +410,7 @@
       content: '';
       position: absolute;
       inset: 0;
-      background: radial-gradient(ellipse at 50% 0%, rgba(99,102,241,.15) 0%, transparent 70%);
+      background: radial-gradient(ellipse at 50% 0%, rgba(99,102,241,.07) 0%, transparent 70%);
       pointer-events: none;
     }
     .mid-block-top {
@@ -748,7 +748,7 @@
     @media (prefers-reduced-motion: reduce) {
       .scenario-card { opacity: 1; transform: none; animation: none; }
     }
-    .scenario-card:hover  { border-color: #3a3a54; background: var(--surface-2); }
+    .scenario-card:hover  { border-color: #c0c0dc; background: var(--surface-2); }
     .scenario-card.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); background: var(--surface-2); }
     .scenario-card-icon {
       position: absolute;
@@ -788,7 +788,7 @@
       font-family: inherit;
       color: var(--text);
     }
-    .history-chip:hover { border-color: #3a3a54; background: var(--surface-2); }
+    .history-chip:hover { border-color: #c0c0dc; background: var(--surface-2); }
     .history-chip-mid { font-weight: 700; font-size: .85rem; color: var(--text); letter-spacing: -.02em; }
     .history-chip-label { color: var(--text-3); margin-top: .1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
 
