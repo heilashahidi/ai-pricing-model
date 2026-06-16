@@ -694,6 +694,137 @@
       padding: .35rem .625rem;
       display: inline-block;
     }
+
+    /* ── Hero ── */
+    .hero {
+      max-width: 1040px;
+      margin: 2.5rem auto 0;
+      padding: 0 1.5rem;
+      text-align: center;
+    }
+    .hero-headline {
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -.035em;
+      color: var(--text);
+      line-height: 1.2;
+      margin-bottom: .625rem;
+    }
+    .hero-headline em {
+      font-style: normal;
+      background: linear-gradient(135deg, var(--accent) 0%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      font-size: .9rem;
+      color: var(--text-2);
+      line-height: 1.65;
+      max-width: 500px;
+      margin: 0 auto 2rem;
+    }
+    @media (max-width: 680px) {
+      .hero-headline { font-size: 1.3rem; }
+    }
+
+    /* ── Scenario card stagger + icon ── */
+    @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+    .scenario-card {
+      opacity: 0;
+      transform: translateY(8px);
+      animation: fadeUp .35s ease forwards;
+      position: relative;
+    }
+    .scenario-card:nth-child(1) { animation-delay: 0ms; }
+    .scenario-card:nth-child(2) { animation-delay: 60ms; }
+    .scenario-card:nth-child(3) { animation-delay: 120ms; }
+    .scenario-card:nth-child(4) { animation-delay: 180ms; }
+    @media (prefers-reduced-motion: reduce) {
+      .scenario-card { opacity: 1; transform: none; animation: none; }
+    }
+    .scenario-card-icon {
+      position: absolute;
+      top: .75rem;
+      right: .75rem;
+      color: var(--text-3);
+      opacity: .45;
+      transition: opacity .15s, color .15s;
+      pointer-events: none;
+    }
+    .scenario-card:hover .scenario-card-icon { opacity: .65; }
+    .scenario-card.active .scenario-card-icon { opacity: .9; color: var(--accent); }
+
+    /* ── Confidence tier steps ── */
+    .conf-tiers { margin-bottom: 1rem; }
+    .conf-tier-steps {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .5rem;
+      margin-bottom: .625rem;
+    }
+    .conf-tier-step {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: .625rem .5rem;
+      text-align: center;
+      background: var(--surface-2);
+      transition: border-color .2s, background .2s;
+    }
+    .conf-tier-step.active {
+      background: var(--tier-bg, var(--surface-2));
+      border-color: var(--tier-border, var(--border));
+    }
+    .conf-tier-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      margin: 0 auto .375rem;
+      background: var(--border);
+      transition: background .2s;
+    }
+    .conf-tier-step.active .conf-tier-dot { background: var(--tier-color, var(--text-2)); }
+    .conf-tier-label {
+      font-size: .6rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      transition: color .2s;
+    }
+    .conf-tier-step.active .conf-tier-label { color: var(--tier-color, var(--text-2)); }
+
+    /* ── Empty state flow ── */
+    .empty-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      margin-bottom: 1.125rem;
+    }
+    .empty-flow-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .375rem;
+    }
+    .empty-flow-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-3);
+    }
+    .empty-flow-label {
+      font-size: .58rem;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      color: var(--text-3);
+    }
+    .empty-flow-arrow { color: var(--border); font-size: .8rem; margin-bottom: 1rem; }
   </style>
 </head>
 <body>
@@ -711,25 +842,42 @@
   <span class="nav-pill">Demo</span>
 </nav>
 
+<section class="hero">
+  <div class="hero-headline">Pricing that <em>reads the job,</em> not just the category</div>
+  <div class="hero-sub">Describe any home service in plain English. The model extracts scope, corrects the baseline estimate, and tells you how confident it is.</div>
+</section>
+
 <section class="scenarios">
   <div class="scenarios-label">Try a scenario</div>
   <div class="scenarios-grid">
     <button class="scenario-card active" onclick="loadScenario(0)">
+      <svg class="scenario-card-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.75 6.75a4.5 4.5 0 01-4.884 4.484c-1.076-.091-2.264.071-2.95.904l-7.152 8.684a2.548 2.548 0 11-3.586-3.586l8.684-7.152c.833-.686.995-1.874.904-2.95a4.5 4.5 0 016.336-4.486l-3.276 3.276a3.004 3.004 0 002.25 2.25l3.276-3.276c.256.565.398 1.192.398 1.852z"/>
+      </svg>
       <div class="scenario-badge" style="background:rgba(34,197,94,.12);color:var(--success)">Model corrects ↓58%</div>
       <div class="scenario-title">Labor-Only Handyman</div>
       <div class="scenario-desc">Baseline overestimates when the homeowner supplies materials. Model detects labor-only scope.</div>
     </button>
     <button class="scenario-card" onclick="loadScenario(1)">
+      <svg class="scenario-card-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/>
+      </svg>
       <div class="scenario-badge" style="background:var(--accent-dim);color:var(--accent)">Baseline passthrough</div>
       <div class="scenario-title">HVAC Maintenance</div>
       <div class="scenario-desc">HVAC is well-priced at 9.7% MAPE — model routes directly to the baseline estimate.</div>
     </button>
     <button class="scenario-card" onclick="loadScenario(2)">
+      <svg class="scenario-card-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/>
+      </svg>
       <div class="scenario-badge" style="background:var(--danger-dim);color:var(--danger)">Confidence &lt; 0.5</div>
       <div class="scenario-title">Large Remodel (OOD)</div>
       <div class="scenario-desc">Outside training distribution — model flags uncertainty and routes for manual review.</div>
     </button>
     <button class="scenario-card" onclick="loadScenario(3)">
+      <svg class="scenario-card-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+      </svg>
       <div class="scenario-badge" style="background:rgba(34,197,94,.12);color:var(--success)">High confidence</div>
       <div class="scenario-title">Pest Control</div>
       <div class="scenario-desc">65 priced training rows, 10.2% baseline MAPE — model is well-calibrated for this category.</div>
@@ -813,13 +961,38 @@
     <div class="card-divider"></div>
 
     <div class="empty-state" id="empty-state">
-      <div class="empty-icon">
-        <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-        </svg>
+      <div class="empty-flow">
+        <div class="empty-flow-step">
+          <div class="empty-flow-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/>
+            </svg>
+          </div>
+          <div class="empty-flow-label">Describe job</div>
+        </div>
+        <div class="empty-flow-arrow">→</div>
+        <div class="empty-flow-step">
+          <div class="empty-flow-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+              <path d="M18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/>
+            </svg>
+          </div>
+          <div class="empty-flow-label">AI reads scope</div>
+        </div>
+        <div class="empty-flow-arrow">→</div>
+        <div class="empty-flow-step">
+          <div class="empty-flow-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/>
+              <path d="M6 6h.008v.008H6V6z"/>
+            </svg>
+          </div>
+          <div class="empty-flow-label">Get price</div>
+        </div>
       </div>
-      <div class="empty-headline">No estimate yet</div>
-      <div class="empty-sub">Fill out the form and click Get Price Estimate to see results.</div>
+      <div class="empty-headline">Pick a scenario above</div>
+      <div class="empty-sub">Or describe your own job — the model extracts scope and corrects the estimate automatically.</div>
     </div>
 
     <div class="result-content" id="result-content" style="display:none"></div>
@@ -1077,6 +1250,18 @@
     return '$' + Math.round(n).toLocaleString();
   }
 
+  function animatePrice(el, target) {
+    const start = performance.now();
+    const dur = 650;
+    const tick = t => {
+      const p = Math.min((t - start) / dur, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      el.textContent = '$' + Math.round(ease * target).toLocaleString();
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
   function confColor(c) {
     if (c >= 0.75) return 'var(--success)';
     if (c >= 0.5)  return 'var(--warn)';
@@ -1210,13 +1395,16 @@
           </div>
         </div>
 
-        <div class="conf-section">
-          <div class="conf-header">
-            <span class="conf-heading" style="color:${tier.color};font-weight:700">${tier.label}</span>
-            <span class="conf-pct" style="color:var(--text-3);font-weight:400">${pct}% confidence</span>
-          </div>
-          <div class="conf-track">
-            <div class="conf-fill" style="width:${pct}%;background:${color}"></div>
+        <div class="conf-tiers">
+          <div class="conf-tier-steps">
+            ${[
+              { name: 'Rough',    active: conf < 0.5,                  color: 'var(--danger)',  bg: 'rgba(239,68,68,.08)',   border: 'rgba(239,68,68,.3)'  },
+              { name: 'Moderate', active: conf >= 0.5 && conf < 0.75,  color: 'var(--warn)',    bg: 'rgba(245,158,11,.08)',  border: 'rgba(245,158,11,.3)' },
+              { name: 'High',     active: conf >= 0.75,                 color: 'var(--success)', bg: 'rgba(34,197,94,.08)',   border: 'rgba(34,197,94,.3)'  },
+            ].map(t => `<div class="conf-tier-step${t.active ? ' active' : ''}"${t.active ? ` style="--tier-color:${t.color};--tier-bg:${t.bg};--tier-border:${t.border}"` : ''}>
+              <div class="conf-tier-dot"></div>
+              <div class="conf-tier-label">${t.name}</div>
+            </div>`).join('')}
           </div>
           <div class="conf-desc">${confText(conf, category)}</div>
         </div>
@@ -1250,6 +1438,8 @@
       `;
 
       document.getElementById('result-content').style.display = 'block';
+      const priceEl = document.querySelector('#result-content .mid-price');
+      if (priceEl) animatePrice(priceEl, mid);
       addToHistory({ category, zip, desc, deadline, mid, lo, hi });
 
     } catch (err) {
