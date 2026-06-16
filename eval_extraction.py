@@ -32,7 +32,7 @@ EXTRACTION_TOOL = {
         "properties": {
             "labor_only": {
                 "type": "boolean",
-                "description": "True if the customer supplies all parts/materials (pure labor job).",
+                "description": "True only if the customer explicitly states they are supplying all parts or materials (e.g. 'we supply', 'I provide the materials', 'labor only'). Do NOT infer from service type — cleaning, landscaping, and moving are not labor-only unless the customer says so.",
             },
             "task_count": {
                 "type": "integer",
@@ -49,7 +49,7 @@ EXTRACTION_TOOL = {
             },
             "has_area_measure": {
                 "type": "boolean",
-                "description": "True if the description mentions square footage, acreage, room count, or linear footage.",
+                "description": "True if an explicit area or size measurement is stated: square footage, acreage, or linear footage (e.g. '1,400 sq ft', '0.25 acres', '50 linear feet'). Bedroom or bathroom count alone (e.g. '3-bedroom home') does NOT qualify.",
             },
         },
         "required": ["labor_only", "task_count", "unit_count", "complexity_tier", "has_area_measure"],

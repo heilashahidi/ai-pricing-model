@@ -148,7 +148,7 @@ EXTRACTION_TOOL = {
         "type": "object",
         "properties": {
             "labor_only":      {"type": "boolean",
-                                "description": "True if customer supplies all parts/materials."},
+                                "description": "True only if the customer explicitly states they are supplying all parts or materials (e.g. 'we supply', 'I provide the materials', 'labor only'). Do NOT infer from service type — cleaning, landscaping, and moving are not labor-only unless the customer says so."},
             "task_count":      {"type": "integer",
                                 "description": "Number of distinct task types. 'Install shutters + patch wall' = 2. 'Install 3 shutters' = 1 (one task type, multiple units)."},
             "unit_count":      {"type": "integer",
@@ -156,7 +156,7 @@ EXTRACTION_TOOL = {
             "complexity_tier": {"type": "string", "enum": ["low", "medium", "high"],
                                 "description": "low=simple, medium=moderate, high=multi-trade."},
             "has_area_measure":{"type": "boolean",
-                                "description": "True if sq ft, room count, or linear footage mentioned."},
+                                "description": "True if an explicit area or size measurement is stated: square footage, acreage, or linear footage (e.g. '1,400 sq ft', '0.25 acres', '50 linear feet'). Bedroom or bathroom count alone (e.g. '3-bedroom home') does NOT qualify."},
         },
         "required": ["labor_only", "task_count", "unit_count", "complexity_tier", "has_area_measure"],
     },
