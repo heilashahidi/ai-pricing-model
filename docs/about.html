@@ -18,8 +18,9 @@
   h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--indigo);
     margin:38px 0 10px; font-weight:700; }
   p { margin:0 0 14px; }
-  ol { margin:0 0 14px; padding-left:22px; }
-  ol li { margin:0 0 10px; }
+  ol, ul { margin:0 0 14px; padding-left:22px; }
+  ol li, ul li { margin:0 0 9px; }
+  .grp { font-weight:700; font-size:14px; margin:18px 0 8px; }
   b { font-weight:650; }
   .flow { background:#fff; border:1px solid var(--line); border-radius:12px;
     padding:16px 18px; font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -158,6 +159,37 @@
     <div class="chip"><b>Observability</b>Prometheus metrics · structured logs</div>
     <div class="chip"><b>Reliability</b>Circuit breaker · retries · rate limiting · health checks</div>
   </div>
+
+  <h2>Scaling &amp; next steps</h2>
+  <p>The system is built to get better as it runs. The highest-leverage moves, in rough priority:</p>
+
+  <p class="grp">Sharper estimates</p>
+  <ul>
+    <li><b>More outcome data</b> — by far the biggest lever. Some categories train on fewer than 20
+      jobs today, which is exactly why the harder ones (e.g. Handyman) are less accurate. The
+      feedback loop already collects this; it mostly just needs volume.</li>
+    <li><b>Richer inputs</b> — add seasonality (already captured at booking, not yet used by the
+      model), zip-level local labor rates, and an embedding of the job text so the model sees
+      nuance beyond a handful of flags.</li>
+    <li><b>Calibrated ranges</b> — replace today's manual range-widening with conformal prediction
+      for a statistically guaranteed low/high.</li>
+    <li><b>Shared learning across categories</b> — let sparse categories borrow strength from
+      related ones instead of standing alone.</li>
+  </ul>
+
+  <p class="grp">Scaling for volume</p>
+  <ul>
+    <li><b>Durable database</b> — move from the current file-based store to managed Postgres so
+      outcomes persist and the model keeps learning across deploys.</li>
+    <li><b>Separate training from serving</b> — retrain in a background worker, store models
+      centrally, and roll new versions out with automatic rollback.</li>
+    <li><b>Shared cache</b> — a shared cache for the AI scope-reading step cuts cost and latency as
+      traffic grows (it's the main cost driver and sits on the live request path).</li>
+    <li><b>Monitoring &amp; alerts</b> — dashboards and per-category accuracy alerts so quality
+      issues surface before customers notice.</li>
+  </ul>
+  <div class="note">The throughline: durable data + automatic retraining form a loop where the
+    model genuinely improves itself the more the product is used.</div>
 
   <p class="foot">Live numbers update on the <a href="./">metrics dashboard</a>.
     Full source: <a href="https://github.com/heilashahidi/ai-pricing-model">github.com/heilashahidi/ai-pricing-model</a></p>
