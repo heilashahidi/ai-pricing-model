@@ -1120,15 +1120,20 @@
     btn.disabled = true;
     btn.textContent = '…';
     try {
-      await fetch(OUTCOME_ENDPOINT, {
+      const res = await fetch(OUTCOME_ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ job_id: _currentJobId, final_price: price }),
       });
+      if (!res.ok) throw new Error('submit failed');
+      const data = await res.json().catch(() => ({}));
+      const msg = (data && data.ape != null)
+        ? `The estimate was within ${data.ape}% of that price. Verified job outcomes retrain the model.`
+        : `Got it. Verified job outcomes retrain the model.`;
       document.getElementById('outcome-result').innerHTML =
         `<div class="outcome-thanks">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-          Recorded — verified job outcomes retrain the model.
+          ${msg}
         </div>`;
       document.getElementById('actual-price').disabled = true;
       btn.style.display = 'none';

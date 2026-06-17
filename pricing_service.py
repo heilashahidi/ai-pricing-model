@@ -1188,6 +1188,7 @@ async def predict_batch(req: BatchPricingRequest,
 @app.post("/.netlify/functions/pricing-outcome", response_model=OutcomeResponse)
 async def record_outcome(req: OutcomeRequest,
                          key_meta: dict = Depends(_get_key_meta)):
+    verified = req.source == "verified"
     ape = None
     try:
         with state.db_lock:
@@ -1198,22 +1199,26 @@ async def record_outcome(req: OutcomeRequest,
                 ).fetchone()
                 if row and row[0] and row[0] > 0:
                     ape = round(abs(req.final_price - row[0]) / req.final_price * 100, 2)
-                source = "verified" if req.source == "verified" else "demo"
-                conn.execute(
-                    "INSERT OR REPLACE INTO outcomes (job_id, final_price, ape, recorded_at, source)"
-                    " VALUES (?,?,?,?,?)",
-                    (req.job_id, req.final_price, ape,
-                     datetime.now(timezone.utc).isoformat(), source),
-                )
+                # Only verified outcomes are persisted — they feed retraining and the
+                # live-accuracy metrics. Demo submissions get their APE computed and
+                # returned but are never stored, so an unauthenticated public endpoint
+                # can't bloat the DB or skew the dashboard.
+                if verified:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO outcomes (job_id, final_price, ape, recorded_at, source)"
+                        " VALUES (?,?,?,?,?)",
+                        (req.job_id, req.final_price, ape,
+                         datetime.now(timezone.utc).isoformat(), "verified"),
+                    )
     except Exception as e:
         _log("db_error", op="record_outcome", job_id=req.job_id, error=str(e))
         raise HTTPException(status_code=500, detail="Failed to store outcome")
 
-    _OUTCOMES.inc()
-    _log("outcome", job_id=req.job_id[:8], final_price=req.final_price,
-         ape=ape, key_name=key_meta["name"])
-
-    asyncio.create_task(_maybe_retrain())
+    if verified:
+        _OUTCOMES.inc()
+        _log("outcome", job_id=req.job_id[:8], final_price=req.final_price,
+             ape=ape, key_name=key_meta["name"])
+        asyncio.create_task(_maybe_retrain())
     return OutcomeResponse(job_id=req.job_id, ape=ape)
 
 
