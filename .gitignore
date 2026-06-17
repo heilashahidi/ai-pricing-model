@@ -34,3 +34,5 @@ models/outcomes.db
 models/outcomes.db-shm
 models/outcomes.db-wal
 models/extraction_cache.pkl
+.venv/
+.claude/worktrees/

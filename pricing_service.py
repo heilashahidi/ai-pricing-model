@@ -21,6 +21,7 @@ import hmac
 import json
 import logging
 import os
+import shutil
 import pickle
 import sqlite3
 import threading
@@ -50,7 +51,8 @@ import xgboost as xgb
 from cachetools import LRUCache
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -135,6 +137,7 @@ def _log(event: str, **fields) -> None:
 MODELS_DIR        = "models"
 META_PATH         = os.path.join(MODELS_DIR, "meta.json")
 DB_PATH           = os.path.join(MODELS_DIR, "outcomes.db")
+SEED_DB_PATH      = os.path.join(MODELS_DIR, "seed.db")
 CACHE_PATH        = os.path.join(MODELS_DIR, "extraction_cache.pkl")
 FEATURES_CSV      = "features_enriched.csv"
 RETRAIN_THRESHOLD = int(os.environ.get("RETRAIN_THRESHOLD", "20"))
@@ -529,8 +532,11 @@ async def lifespan(app: FastAPI):
     state.rate_limiter    = _RateLimiter()
     state.key_store       = _ApiKeyStore()
 
-    # DB
+    # DB — restore a committed seed on a fresh deploy so metrics aren't empty
     state.db_lock = threading.Lock()
+    if not os.path.exists(DB_PATH) and os.path.exists(SEED_DB_PATH):
+        shutil.copy(SEED_DB_PATH, DB_PATH)
+        _log("startup", phase="db_seed", source=SEED_DB_PATH)
     _init_db(DB_PATH)
 
     # Prometheus initial gauge sync
@@ -562,6 +568,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="HouseAccount Pricing Service", lifespan=lifespan)
 app.add_middleware(_RequestIDMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 # Mount Prometheus scrape endpoint (Grafana → Connections → Data Sources → Prometheus)
 _prom_app = _make_prom_app()
@@ -1317,6 +1329,111 @@ def metrics():
     except Exception as e:
         _log("metrics_error", error=str(e))
         raise HTTPException(status_code=500, detail="Metrics unavailable")
+
+
+@app.get("/metrics/dashboard", response_class=HTMLResponse)
+def metrics_dashboard():
+    """Plain-English rendering of /metrics for humans (not Prometheus scrapers)."""
+    return _METRICS_DASHBOARD_HTML
+
+
+_METRICS_DASHBOARD_HTML = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pricing model · metrics</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { --ink:#1e2030; --muted:#6b7090; --line:#e6e8f0; --good:#16a34a; --warn:#d97706; --indigo:#6366f1; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#f6f7fb; color:var(--ink);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:32px 20px 64px; }
+  h1 { font-size:22px; margin:0 0 2px; }
+  .sub { color:var(--muted); margin:0 0 28px; font-size:13px; }
+  section { margin:0 0 28px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+    margin:0 0 12px; font-weight:600; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+  .card .v { font-size:24px; font-weight:650; letter-spacing:-.01em; }
+  .card .k { font-size:12px; color:var(--muted); margin-top:3px; }
+  .card .d { font-size:11px; color:var(--muted); margin-top:6px; line-height:1.4; }
+  .v.good { color:var(--good); } .v.warn { color:var(--warn); }
+  table { width:100%; border-collapse:collapse; background:#fff;
+    border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  th,td { padding:10px 14px; text-align:right; font-variant-numeric:tabular-nums; }
+  th:first-child,td:first-child { text-align:left; }
+  thead th { font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--muted); font-weight:600; background:#fafbff; }
+  tbody tr { border-top:1px solid var(--line); }
+  .pill { display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:600; }
+  .pill.ok { background:#e7f6ec; color:var(--good); } .pill.bad { background:#fdeceb; color:#dc2626; }
+  .foot { color:var(--muted); font-size:12px; margin-top:24px; }
+  .foot a { color:var(--indigo); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Pricing model metrics</h1>
+  <p class="sub" id="sub">Loading…</p>
+  <div id="root"></div>
+  <p class="foot">Auto-refreshes every 15s · Raw scrape format at
+    <a href="/metrics/prometheus/">/metrics/prometheus</a> · JSON at <a href="/metrics">/metrics</a></p>
+</div>
+<script>
+const pct = v => v == null ? "—" : v + "%";
+const cls = (v, warn) => v == null ? "" : v <= warn ? "good" : "warn";
+const card = (v, k, d, c="") => `<div class="card"><div class="v ${c}">${v}</div>
+  <div class="k">${k}</div>${d ? `<div class="d">${d}</div>` : ""}</div>`;
+
+async function load() {
+  let m;
+  try { m = await (await fetch("/metrics")).json(); }
+  catch (e) { document.getElementById("sub").textContent = "Could not reach /metrics"; return; }
+  document.getElementById("sub").textContent =
+    `${m.model_version} · ${m.n_train} training outcomes · updated ${new Date().toLocaleTimeString()}`;
+  const r = m.rolling_90d || {}, cb = m.circuit_breaker || {}, tb = m.training_benchmarks || {};
+  const html = [];
+
+  html.push(`<section><h2>Live accuracy · last 90 days</h2><div class="grid">
+    ${card(pct(r.mape), "MAPE", "Average error vs final price. Lower is better.", cls(r.mape, 20))}
+    ${card(pct(r.wape), "WAPE", "Error weighted by job size — big jobs count more.", cls(r.wape, 20))}
+    ${card("$" + (r.rmse ?? "—"), "RMSE", "Typical dollar miss per estimate.")}
+    ${card(r.n ?? 0, "Outcomes scored", "Completed jobs with a known final price.")}
+  </div></section>`);
+
+  html.push(`<section><h2>Model health</h2><div class="grid">
+    ${card(`<span class="pill ${cb.open ? "bad" : "ok"}">${cb.open ? "OPEN" : "Closed"}</span>`,
+      "Circuit breaker", `${cb.failures || 0} recent failures. Open = falling back to baseline.`)}
+    ${card(`<span class="pill ${m.retrain_running ? "bad" : "ok"}">${m.retrain_running ? "Running" : "Idle"}</span>`,
+      "Retraining", `Triggers after ${m.retrain_threshold} new outcomes.`)}
+    ${card(m.total_estimates, "Estimates served", "Total price requests handled.")}
+    ${card(m.total_outcomes, "Outcomes recorded", "Jobs reported back with a final price.")}
+  </div></section>`);
+
+  const rows = (m.per_category_90d || []).map(c => `<tr>
+    <td>${c.category}</td><td class="${cls(c.mape, 20)}" style="color:inherit">${pct(c.mape)}</td>
+    <td>${pct(c.wape)}</td><td>$${c.rmse ?? "—"}</td><td>${c.n}</td></tr>`).join("");
+  if (rows) html.push(`<section><h2>Accuracy by category · 90 days</h2>
+    <table><thead><tr><th>Category</th><th>MAPE</th><th>WAPE</th><th>RMSE</th><th>Jobs</th></tr></thead>
+    <tbody>${rows}</tbody></table></section>`);
+
+  if (tb.mape_baseline != null) html.push(`<section><h2>Training benchmark · model vs baseline</h2>
+    <table><thead><tr><th>Metric</th><th>Baseline</th><th>Model</th></tr></thead><tbody>
+    <tr><td>MAPE</td><td>${pct(tb.mape_baseline)}</td><td class="${cls(tb.mape_routed, tb.mape_baseline)}" style="color:inherit">${pct(tb.mape_routed)}</td></tr>
+    <tr><td>WAPE</td><td>${pct(tb.wape_baseline)}</td><td>${pct(tb.wape_routed)}</td></tr>
+    <tr><td>RMSE</td><td>$${tb.rmse_baseline}</td><td>$${tb.rmse_routed}</td></tr>
+    <tr><td>Handyman MAPE</td><td>${pct(tb.handyman_mape_baseline)}</td><td class="good" style="color:inherit">${pct(tb.handyman_mape_model)}</td></tr>
+    </tbody></table></section>`);
+
+  document.getElementById("root").innerHTML = html.join("");
+}
+load(); setInterval(load, 15000);
+</script>
+</body>
+</html>"""
 
 
 @app.get("/health")
