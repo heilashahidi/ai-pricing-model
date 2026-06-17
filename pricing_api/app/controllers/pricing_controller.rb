@@ -5,12 +5,15 @@ class PricingController < ApplicationController
   PUBLIC_REQUIRED_FIELDS  = %w[service_category zip_code job_description].freeze
   OUTCOME_REQUIRED_FIELDS = %w[job_id final_price].freeze
   BOOK_REQUIRED_FIELDS    = %w[name phone zip_code job_description estimate_lo estimate_hi].freeze
-  PRICING_SERVICE_URL = ENV.fetch("PRICING_SERVICE_URL",
-    "http://localhost:8001/.netlify/functions/pricing-estimate")
-  BATCH_SERVICE_URL   = ENV.fetch("BATCH_SERVICE_URL",
-    "http://localhost:8001/.netlify/functions/pricing-estimate-batch")
-  OUTCOME_SERVICE_URL = ENV.fetch("OUTCOME_SERVICE_URL",
-    "http://localhost:8001/.netlify/functions/pricing-outcome")
+  # All three ML endpoints share one base. Deriving OUTCOME/BATCH from the same
+  # base as PRICING_SERVICE_URL means one configured URL is enough — a missing
+  # OUTCOME_SERVICE_URL can no longer silently fall back to localhost in prod.
+  _ml_base = (ENV["PRICING_SERVICE_URL"] ||
+    "http://localhost:8001/.netlify/functions/pricing-estimate").sub(%r{/[^/]+\z}, "")
+  PRICING_ML_BASE     = ENV.fetch("PRICING_ML_BASE", _ml_base)
+  PRICING_SERVICE_URL = ENV.fetch("PRICING_SERVICE_URL", "#{PRICING_ML_BASE}/pricing-estimate")
+  BATCH_SERVICE_URL   = ENV.fetch("BATCH_SERVICE_URL",   "#{PRICING_ML_BASE}/pricing-estimate-batch")
+  OUTCOME_SERVICE_URL = ENV.fetch("OUTCOME_SERVICE_URL", "#{PRICING_ML_BASE}/pricing-outcome")
 
   def public_estimate
     body = parse_body
