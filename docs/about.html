@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HouseAccount pricing model · how it works</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%236366f1'/><g transform='translate(6.5 6.5) scale(1.35)' fill='none' stroke='white' stroke-width='1.5' stroke-linejoin='round' stroke-linecap='round'><path d='M7 1L13 4.5V9.5L7 13L1 9.5V4.5L7 1Z'/><path d='M7 5v4M5 7h4'/></g></svg>">
+<style>
+  :root { --ink:#1e2030; --muted:#6b7090; --line:#e6e8f0; --good:#16a34a; --indigo:#6366f1; --bg:#f6f7fb; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:760px; margin:0 auto; padding:36px 20px 72px; }
+  .nav { display:flex; gap:16px; font-size:13px; margin-bottom:26px; }
+  .nav a { color:var(--indigo); text-decoration:none; font-weight:600; }
+  h1 { font-size:25px; margin:0 0 6px; letter-spacing:-.01em; }
+  .lede { color:var(--muted); font-size:15px; margin:0 0 34px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--indigo);
+    margin:38px 0 10px; font-weight:700; }
+  p { margin:0 0 14px; }
+  ol { margin:0 0 14px; padding-left:22px; }
+  ol li { margin:0 0 10px; }
+  b { font-weight:650; }
+  .flow { background:#fff; border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;
+    color:var(--ink); overflow-x:auto; white-space:pre; margin:0 0 18px; }
+  .stack { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; margin:4px 0 6px; }
+  .chip { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 13px; font-size:13px; }
+  .chip b { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:3px; font-weight:600; }
+  .note { background:#eef0fe; border:1px solid #d9ddfb; border-radius:10px; padding:12px 15px; font-size:14px; margin:0 0 14px; }
+  code { background:#eceef6; border-radius:5px; padding:1px 5px; font-size:13px; }
+  .foot { color:var(--muted); font-size:13px; margin-top:40px; border-top:1px solid var(--line); padding-top:16px; }
+  .foot a { color:var(--indigo); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav"><a href="./">← Live metrics</a><a href="https://github.com/heilashahidi/ai-pricing-model">Source on GitHub</a></div>
+
+  <h1>How the pricing model works</h1>
+  <p class="lede">A technical brief for the HouseAccount team. The system takes a home-service
+    job described in plain English and returns a price <b>range</b> (low / likely / high) plus a
+    <b>confidence score</b> — and gets more accurate as real job outcomes come back.</p>
+
+  <h2>The job, end to end</h2>
+  <div class="flow">job description + category + zip
+        │
+   ① Claude Haiku reads the text  ──►  structured scope
+        │                              (labor-only? area? #tasks? complexity?)
+   ② Build feature vector  ──►  scope + urgency + local income + category
+        │
+   ③ 3 XGBoost models predict  ──►  low (5%) · likely (50%) · high (95%)
+        │
+   ④ Confidence score + out-of-range check
+        │
+   ⑤ Store the estimate  ──►  return range + confidence to the app</div>
+
+  <h2>1 · Reading the job (the AI part)</h2>
+  <p>The hard part of pricing is that a "Handyman" job can be a $90 faucet swap or a $900
+    multi-task day. We use <b>Claude Haiku</b> to read the free-text description and pull out
+    structured signals — <i>is it labor-only, is there an area measurement, how many tasks,
+    how complex</i> — via a strict tool-call so the output is always clean JSON.</p>
+  <div class="note">Example: a request says <i>"just labor, I have my own parts."</i> Haiku flags
+    <code>labor_only = true</code>, which tells the model to drop the materials portion of the
+    price — the single biggest correction it makes.</div>
+  <p>Calls are cached (same description → no second call), and wrapped in a <b>circuit breaker
+    with one retry</b>: if Haiku is slow or down, we fall back to safe defaults and still return
+    a price rather than failing.</p>
+
+  <h2>2 · The features</h2>
+  <p>The scope signals are combined with: <b>deadline urgency</b>, the <b>local median income</b>
+    (looked up from the zip code), the customer's <b>original estimate</b> (or the category's
+    typical price if none), and a one-hot flag for the <b>service category</b> (18 supported).</p>
+
+  <h2>3 · The model</h2>
+  <p>Three <b>XGBoost quantile-regression models</b> run together — one predicts the 5th
+    percentile (low), one the 50th (the likely price), one the 95th (high). That's how we get a
+    real <b>range</b>, not just a single number, with a calibrated 90% interval.</p>
+  <p>Trained on <b>~410 real historical jobs</b> and validated with 5-fold cross-validation.
+    Blended error is around <b>11% MAPE</b> (average % off the final price), beating the
+    old original-estimate baseline — with the biggest wins on the messy categories
+    (Handyman dropped from ~48% to ~31% error). Two refinements: high-variance categories get
+    slightly wider ranges so the true price actually lands inside, and categories the model
+    already prices well are left on their trusted baseline.</p>
+
+  <h2>4 · Knowing when it's unsure</h2>
+  <p>Every estimate gets a <b>confidence score</b> from how wide its range is. It's deliberately
+    capped low for big-ticket jobs (&gt;$5,000), very wide ranges, and <b>out-of-distribution</b>
+    inputs — e.g. a category or job size the model hasn't really seen. Those surface in the app as
+    a "Rough" estimate instead of a confident one, so we never present a shaky number as solid.</p>
+
+  <h2>5 · It learns over time</h2>
+  <p>When a job closes, the real final price is sent back. The system tracks <b>rolling 90-day
+    accuracy</b> (overall and per category), and:</p>
+  <ol>
+    <li><b>Auto-retrains</b> once enough new outcomes accumulate (default: 20).</li>
+    <li><b>Watches for drift</b> — if 30-day error crosses a threshold, it alerts.</li>
+    <li>Exposes everything as <b>live metrics</b> (the dashboard on the previous page).</li>
+  </ol>
+
+  <h2>Architecture</h2>
+  <p>Two small services, one repo, both deployed on <b>Railway</b> straight from GitHub:</p>
+  <div class="flow">Browser ──► pricing-api (Rails)  ──private network──►  pricing-ml (Python)
+            public UI + API proxy            the model + Claude Haiku
+                                             SQLite of estimates & outcomes</div>
+  <p>The Rails app is the public face (the demo UI and booking); the Python service does all the
+    model work. They talk over Railway's private network with a <b>shared secret</b>, so the
+    model isn't directly exposed. This documentation site is served separately from
+    <b>GitHub Pages</b> and reads the live metrics over a public read-only endpoint.</p>
+
+  <h2>Tech stack</h2>
+  <div class="stack">
+    <div class="chip"><b>Model</b>Python · XGBoost (quantile) · scikit-learn · NumPy / pandas</div>
+    <div class="chip"><b>AI extraction</b>Claude Haiku 4.5 (tool-use)</div>
+    <div class="chip"><b>Model service</b>FastAPI · Uvicorn · Pydantic · Docker</div>
+    <div class="chip"><b>Web app</b>Ruby on Rails · Puma</div>
+    <div class="chip"><b>Data</b>SQLite · pgeocode (zip → income)</div>
+    <div class="chip"><b>Infra</b>Railway · GitHub / GitHub Pages</div>
+    <div class="chip"><b>Observability</b>Prometheus metrics · structured logs</div>
+    <div class="chip"><b>Reliability</b>Circuit breaker · retries · rate limiting · health checks</div>
+  </div>
+
+  <p class="foot">Live numbers update on the <a href="./">metrics dashboard</a>.
+    Full source: <a href="https://github.com/heilashahidi/ai-pricing-model">github.com/heilashahidi/ai-pricing-model</a></p>
+</div>
+</body>
+</html>
