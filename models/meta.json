@@ -100,5 +100,22 @@
     "Appliance Repair": 208.38,
     "HVAC": 333.07,
     "overall": 316.31
+  },
+  "model_version": "heila-v1.0.0",
+  "training_benchmarks": {
+    "rmse_baseline": 95.9,
+    "rmse_routed": 92.37,
+    "wape_baseline": 9.17,
+    "wape_routed": 9.08,
+    "mape_baseline": 11.56,
+    "mape_routed": 11.27,
+    "bias_baseline": 5.57,
+    "bias_routed": 3.56,
+    "handyman_rmse_baseline": 225.14,
+    "handyman_rmse_model": 160.08,
+    "handyman_wape_baseline": 53.55,
+    "handyman_wape_model": 40.92,
+    "handyman_mape_baseline": 48.44,
+    "handyman_mape_model": 36.89
   }
 }
