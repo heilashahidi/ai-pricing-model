@@ -1009,7 +1009,7 @@
     _currentBaseline = null;
   }
 
-  function loadScenario(idx) {
+  function loadScenario(idx, record = true) {
     const s = SCENARIOS[idx];
     document.getElementById('service_category').value = s.service_category;
     document.getElementById('zip_code').value         = s.zip_code;
@@ -1021,7 +1021,7 @@
     );
     _currentBaseline  = s.original_estimate;
     _showingBaseline  = false;
-    getPricing();
+    getPricing(record);
   }
 
   // ── 4. Category info bar ──
@@ -1226,7 +1226,7 @@
     }, 3000);
   }
 
-  async function getPricing() {
+  async function getPricing(record = true) {
     const category = document.getElementById('service_category').value;
     const desc     = document.getElementById('job_description').value.trim();
     const zip      = document.getElementById('zip_code').value.trim();
@@ -1390,7 +1390,7 @@
 
       const priceEl = document.querySelector('#result-content .mid-price');
       if (priceEl) animatePrice(priceEl, mid);
-      addToHistory({ category, zip, desc, deadline, mid, lo, hi });
+      if (record) addToHistory({ category, zip, desc, deadline, mid, lo, hi });
       _showingBaseline = false;
 
     } catch (err) {
@@ -1466,7 +1466,7 @@
 
   // Init
   updateCatInfo();
-  loadScenario(0);
+  loadScenario(0, false);
   renderPov();
 </script>
 
