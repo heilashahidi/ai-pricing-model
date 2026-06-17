@@ -1278,6 +1278,9 @@ def metrics():
             total_outcomes = conn.execute(
                 "SELECT COUNT(*) FROM outcomes"
             ).fetchone()[0]
+            verified_outcomes = conn.execute(
+                "SELECT COUNT(*) FROM outcomes WHERE source = 'verified'"
+            ).fetchone()[0]
             summary_row = conn.execute("""
                 SELECT
                   AVG(o.ape),
@@ -1312,9 +1315,12 @@ def metrics():
         outcomes_90d = summary_row[3]
         return {
             "ok":              True,
+            "data_dir":        DATA_DIR,
             "total_estimates": total_estimates,
             "total_outcomes":  total_outcomes,
+            "verified_outcomes": verified_outcomes,
             "n_train":         state.meta.get("n_train"),
+            "n_outcomes_trained": state.meta.get("n_outcomes_trained", 0),
             "model_version":   state.meta.get("model_version", "houseaccount-v1.0.0"),
             "retrain_running": state.retrain_running,
             "retrain_threshold": RETRAIN_THRESHOLD,
