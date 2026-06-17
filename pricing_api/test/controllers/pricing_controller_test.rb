@@ -61,7 +61,7 @@ class PricingControllerTest < ActionDispatch::IntegrationTest
     assert_equal 250.0,            body["estimate_hi"]
     assert_equal 200.0,            body["estimate_midpoint"]
     assert_in_delta 0.72,          body["confidence"], 0.01
-    assert_equal "heila-v1.0.0",   body["model_version"]
+    assert_equal "houseaccount-v1.0.0",   body["model_version"]
   end
 
   # ── Downstream error handling ───────────────────────────────────────────
@@ -314,7 +314,7 @@ class PricingControllerTest < ActionDispatch::IntegrationTest
       ok: true, job_id: "test-job-001",
       estimate_lo: 2000.0, estimate_hi: 8000.0,
       estimate_midpoint: 5500.0, confidence: 0.4,
-      model_version: "heila-v1.0.0"
+      model_version: "houseaccount-v1.0.0"
     })
 
     post "/.netlify/functions/pricing-estimate",

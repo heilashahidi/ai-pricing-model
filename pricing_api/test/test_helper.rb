@@ -25,7 +25,7 @@ module ActiveSupport
         ok: true, job_id: "test-job-001",
         estimate_lo: 150.0, estimate_hi: 250.0,
         estimate_midpoint: 200.0, confidence: 0.72,
-        model_version: "heila-v1.0.0"
+        model_version: "houseaccount-v1.0.0"
       }
       stub_request(:post, "http://localhost:8001/.netlify/functions/pricing-estimate")
         .to_return(status: status, body: body.to_json, headers: { "Content-Type" => "application/json" })
@@ -40,7 +40,7 @@ module ActiveSupport
         estimate_lo:       150.0,
         estimate_hi:       400.0,
         estimate_midpoint: 275.0,
-        model_version:     "heila-v1.0.1",
+        model_version:     "houseaccount-v1.0.1",
         deadline:          "Within 1-2 weeks",
       }.merge(overrides).stringify_keys
     end

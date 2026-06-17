@@ -399,6 +399,16 @@ def main():
         [float(r["original_estimate"]) for r in priced if r["original_estimate"]]
     ))
 
+    # Carry the deployed version tag across offline retrains so meta.json keeps
+    # a model_version (the online retrain bumps it; this defaults on first build).
+    meta_path = os.path.join(MODELS_DIR, "meta.json")
+    model_version = "houseaccount-v1.0.0"
+    if os.path.exists(meta_path):
+        try:
+            model_version = json.load(open(meta_path)).get("model_version", model_version)
+        except (ValueError, OSError):
+            pass
+
     meta = {
         "training_median_interval":  TRAINING_MEDIAN_INTERVAL,
         "categories":                CATEGORIES,
@@ -408,10 +418,11 @@ def main():
         "deadline_map":              DEADLINE_MAP,
         "complexity_map":            COMPLEXITY_MAP,
         "n_train":                   len(priced),
+        "model_version":             model_version,
         "blend_weights":             {"well_priced": 0.2, "hard": 0.7},
         "category_estimate_medians": cat_estimate_medians,
     }
-    with open(os.path.join(MODELS_DIR, "meta.json"), "w") as f:
+    with open(meta_path, "w") as f:
         json.dump(meta, f, indent=2)
 
     # ── Print report ────────────────────────────────────────────────────────
