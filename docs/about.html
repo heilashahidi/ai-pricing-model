@@ -28,6 +28,10 @@
   .chip { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 13px; font-size:13px; }
   .chip b { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:3px; font-weight:600; }
   .note { background:#eef0fe; border:1px solid #d9ddfb; border-radius:10px; padding:12px 15px; font-size:14px; margin:0 0 14px; }
+  .why { background:#fff; border:1px solid var(--line); border-left:3px solid var(--indigo);
+    border-radius:10px; padding:12px 15px; margin:0 0 10px; }
+  .why b { display:block; margin-bottom:3px; }
+  .why .alt { color:var(--muted); font-size:13px; margin-top:6px; }
   code { background:#eceef6; border-radius:5px; padding:1px 5px; font-size:13px; }
   .foot { color:var(--muted); font-size:13px; margin-top:40px; border-top:1px solid var(--line); padding-top:16px; }
   .foot a { color:var(--indigo); }
@@ -97,6 +101,41 @@
     <li><b>Watches for drift</b> — if 30-day error crosses a threshold, it alerts.</li>
     <li>Exposes everything as <b>live metrics</b> (the dashboard on the previous page).</li>
   </ol>
+
+  <h2>Why these tools &amp; models</h2>
+  <p>The pricing pipeline is a deliberate split — a language model for understanding, a
+    statistical model for the number — and each piece was chosen for a specific reason:</p>
+
+  <div class="why"><b>An LLM reads the job; a trained model sets the price.</b>
+    A language model is excellent at understanding messy free-text, but it isn't calibrated for
+    numeric prediction, can't give a statistically grounded range, and can't learn from real
+    outcomes. A trained model is the reverse. So each does only what it's best at.
+    <div class="alt">Instead of: asking the LLM to name a price directly — unreliable numbers,
+      no real confidence range, no feedback loop.</div></div>
+
+  <div class="why"><b>XGBoost (gradient-boosted trees) for the prediction.</b>
+    With only a few hundred labeled jobs and a mix of signals, boosted trees are the sweet spot:
+    they capture <i>interactions</i> (labor-only on a Handyman job behaves differently than on an
+    HVAC job), need little tuning, and resist overfitting on small data.
+    <div class="alt">Instead of: deep learning (needs far more data, overkill here) or plain linear
+      regression (misses those interactions).</div></div>
+
+  <div class="why"><b>Quantile regression — a real range, not one number.</b>
+    Three models predict the low, likely, and high price, giving a calibrated 90% range. Pricing is
+    genuinely uncertain; a range plus a confidence score is more honest, and more useful, than a
+    single figure that's quietly wrong.</div>
+
+  <div class="why"><b>Claude Haiku specifically.</b>
+    Scope extraction is a narrow, well-defined task that sits on the live request path, so speed and
+    cost matter. Haiku is fast and inexpensive, and forcing a structured tool-call guarantees clean
+    data every time. A larger model would add latency and cost with no real accuracy gain here.
+    <div class="alt">Instead of: a frontier-size model — slower and pricier for no benefit on a
+      constrained extraction task.</div></div>
+
+  <div class="why"><b>Trust the existing estimate where it's already good.</b>
+    For categories the original estimate already prices well, we keep it and let the model override
+    only the hard categories where it <i>measurably</i> beats the baseline — maximizing accuracy
+    while minimizing the risk of making a good estimate worse.</div>
 
   <h2>Architecture</h2>
   <p>Two small services, one repo, both deployed on <b>Railway</b> straight from GitHub:</p>
