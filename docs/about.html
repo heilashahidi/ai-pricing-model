@@ -6,43 +6,88 @@
 <title>HouseAccount pricing model · how it works</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%236366f1'/><g transform='translate(6.5 6.5) scale(1.35)' fill='none' stroke='white' stroke-width='1.5' stroke-linejoin='round' stroke-linecap='round'><path d='M7 1L13 4.5V9.5L7 13L1 9.5V4.5L7 1Z'/><path d='M7 5v4M5 7h4'/></g></svg>">
 <style>
-  :root { --ink:#1e2030; --muted:#6b7090; --line:#e6e8f0; --good:#16a34a; --indigo:#6366f1; --bg:#f6f7fb; }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink);
-    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
-  .wrap { max-width:760px; margin:0 auto; padding:36px 20px 72px; }
-  .nav { display:flex; gap:16px; font-size:13px; margin-bottom:26px; }
-  .nav a { color:var(--indigo); text-decoration:none; font-weight:600; }
-  h1 { font-size:25px; margin:0 0 6px; letter-spacing:-.01em; }
-  .lede { color:var(--muted); font-size:15px; margin:0 0 34px; }
-  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--indigo);
-    margin:38px 0 10px; font-weight:700; }
+  :root {
+    --ink:#15172b; --muted:#6b7196; --line:#ebedf5; --line-soft:#f1f2f9;
+    --surface:#ffffff; --bg:#f5f6fc; --indigo:#5b5ef0; --violet:#8b5cf6; --good:#15a34a;
+    --shadow:0 1px 2px rgba(22,23,60,.04), 0 10px 30px -14px rgba(22,23,60,.20);
+    --radius:16px;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+  body { margin:0; color:var(--ink); min-height:100vh;
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:
+      radial-gradient(900px 520px at 100% -8%, rgba(139,92,246,.10), transparent 60%),
+      radial-gradient(820px 520px at -8% -2%, rgba(91,94,240,.10), transparent 55%),
+      var(--bg);
+    background-attachment:fixed; }
+  .bar { height:4px; background:linear-gradient(90deg,var(--indigo),var(--violet)); }
+  .wrap { max-width:780px; margin:0 auto; padding:34px 24px 80px; }
+
+  .nav { display:flex; gap:9px; margin:0 0 30px; }
+  .nav a { font-size:12.5px; color:var(--indigo); text-decoration:none; font-weight:600;
+    background:#fff; border:1px solid var(--line); border-radius:999px; padding:7px 14px;
+    box-shadow:var(--shadow); transition:transform .15s ease, border-color .15s ease; }
+  .nav a:hover { transform:translateY(-1px); border-color:#d6d8ec; }
+
+  .brand { display:flex; align-items:center; gap:14px; margin:0 0 16px; }
+  .logo { width:42px; height:42px; border-radius:12px; flex:none; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--indigo),var(--violet)); box-shadow:var(--shadow); }
+  .logo svg { width:23px; height:23px; }
+  h1 { font-size:27px; margin:0; letter-spacing:-.02em; line-height:1.12; font-weight:700; }
+  .lede { color:var(--muted); font-size:16px; line-height:1.6; margin:0 0 12px; max-width:64ch; }
+  .lede b { color:var(--ink); }
+
+  h2 { font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--indigo);
+    margin:42px 0 13px; font-weight:700; display:flex; align-items:center; gap:9px; }
+  h2::before { content:""; width:15px; height:2px; border-radius:2px;
+    background:linear-gradient(90deg,var(--indigo),var(--violet)); }
   p { margin:0 0 14px; }
-  ol, ul { margin:0 0 14px; padding-left:22px; }
-  ol li, ul li { margin:0 0 9px; }
-  .grp { font-weight:700; font-size:14px; margin:18px 0 8px; }
+  ol, ul { margin:0 0 14px; padding-left:20px; }
+  ol li, ul li { margin:0 0 9px; padding-left:3px; }
+  ::marker { color:var(--violet); }
+  .grp { font-weight:700; font-size:14px; margin:20px 0 9px; color:var(--ink); }
   b { font-weight:650; }
-  .flow { background:#fff; border:1px solid var(--line); border-radius:12px;
-    padding:16px 18px; font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace;
-    color:var(--ink); overflow-x:auto; white-space:pre; margin:0 0 18px; }
-  .stack { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; margin:4px 0 6px; }
-  .chip { background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 13px; font-size:13px; }
-  .chip b { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:3px; font-weight:600; }
-  .note { background:#eef0fe; border:1px solid #d9ddfb; border-radius:10px; padding:12px 15px; font-size:14px; margin:0 0 14px; }
-  .why { background:#fff; border:1px solid var(--line); border-left:3px solid var(--indigo);
-    border-radius:10px; padding:12px 15px; margin:0 0 10px; }
-  .why b { display:block; margin-bottom:3px; }
-  .why .alt { color:var(--muted); font-size:13px; margin-top:6px; }
-  code { background:#eceef6; border-radius:5px; padding:1px 5px; font-size:13px; }
-  .foot { color:var(--muted); font-size:13px; margin-top:40px; border-top:1px solid var(--line); padding-top:16px; }
-  .foot a { color:var(--indigo); }
+
+  .flow { background:linear-gradient(180deg,#181b30,#13152643); background-color:#15172b;
+    color:#d4d8f5; border:1px solid #262a45; border-radius:var(--radius);
+    padding:18px 20px; font:12.5px/1.75 ui-monospace,SFMono-Regular,Menlo,monospace;
+    overflow-x:auto; white-space:pre; margin:0 0 20px; box-shadow:var(--shadow); }
+
+  .stack { display:grid; grid-template-columns:repeat(auto-fill,minmax(232px,1fr)); gap:12px; margin:6px 0; }
+  .chip { background:var(--surface); border:1px solid var(--line); border-radius:13px;
+    padding:13px 15px; font-size:13px; box-shadow:var(--shadow);
+    transition:transform .15s ease, box-shadow .15s ease; }
+  .chip:hover { transform:translateY(-2px);
+    box-shadow:0 1px 2px rgba(22,23,60,.05), 0 16px 36px -16px rgba(22,23,60,.28); }
+  .chip b { display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--indigo); margin-bottom:5px; font-weight:700; }
+
+  .note { background:linear-gradient(180deg,#f0f1fe,#edeffe); border:1px solid #dcdffb;
+    border-radius:13px; padding:14px 17px; font-size:14px; line-height:1.55; margin:2px 0 14px; color:#3a3d63; }
+  .why { background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--indigo);
+    border-radius:13px; padding:14px 17px; margin:0 0 12px; box-shadow:var(--shadow); }
+  .why b { display:block; margin-bottom:4px; }
+  .why .alt { color:var(--muted); font-size:13px; margin-top:7px; }
+  code { background:#eef0f8; border-radius:5px; padding:1.5px 6px; font-size:13px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .foot { color:var(--muted); font-size:12.5px; margin-top:44px; border-top:1px solid var(--line);
+    padding-top:18px; line-height:1.8; }
+  .foot a { color:var(--indigo); text-decoration:none; font-weight:500; }
+  .foot a:hover { text-decoration:underline; }
 </style>
 </head>
 <body>
+<div class="bar"></div>
 <div class="wrap">
   <div class="nav"><a href="./">← Live metrics</a><a href="https://github.com/heilashahidi/ai-pricing-model">Source on GitHub</a></div>
 
-  <h1>How the pricing model works</h1>
+  <div class="brand">
+    <span class="logo"><svg viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="1.4"
+      stroke-linejoin="round" stroke-linecap="round"><path d="M7 1L13 4.5V9.5L7 13L1 9.5V4.5L7 1Z"/>
+      <path d="M7 5v4M5 7h4"/></svg></span>
+    <h1>How the pricing model works</h1>
+  </div>
   <p class="lede">A technical brief for the HouseAccount team. The system takes a home-service
     job described in plain English and returns a price <b>range</b> (low / likely / high) plus a
     <b>confidence score</b> — and gets more accurate as real job outcomes come back.</p>
