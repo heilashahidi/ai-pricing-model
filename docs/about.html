@@ -47,6 +47,29 @@
     job described in plain English and returns a price <b>range</b> (low / likely / high) plus a
     <b>confidence score</b> — and gets more accurate as real job outcomes come back.</p>
 
+  <h2>Why it matters (business impact)</h2>
+  <p>The value isn't "we have AI" — it's that a fast, calibrated, self-correcting estimate moves
+    real numbers:</p>
+  <ul>
+    <li><b>Higher conversion</b> — customers get a price the moment they describe the job, instead
+      of waiting for a callback. Less waiting, less time to drift to a competitor, more bookings
+      from the same traffic.</li>
+    <li><b>Protected margin</b> — beating the old baseline (~11% error vs higher) means fewer jobs
+      priced wrong. Underpricing eats margin; overpricing kills the booking. The biggest gains are
+      on the messy categories where mispricing hurts most (Handyman ~48% → ~37% error).</li>
+    <li><b>Less manual quoting</b> — routine jobs are priced automatically; staff focus only on the
+      genuinely ambiguous ones, which the system flags itself as "Rough."</li>
+    <li><b>Fewer disputes</b> — showing an honest range with a confidence score, and flagging shaky
+      jobs instead of faking certainty, sets expectations up front and cuts "the bill didn't match
+      the quote" refunds and churn.</li>
+    <li><b>A compounding data asset</b> — every closed job feeds the learning loop, so accuracy
+      improves with volume. That self-improvement is a moat a from-scratch competitor can't quickly
+      copy.</li>
+  </ul>
+  <div class="note">These are mechanisms, not yet measured dollars. To put real numbers on them,
+    A/B the model against current pricing and track conversion, quote-vs-final-price variance, and
+    dispute rate — the instrumentation to measure all three already exists.</div>
+
   <h2>The job, end to end</h2>
   <div class="flow">job description + category + zip
         │
