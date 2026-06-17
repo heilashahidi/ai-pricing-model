@@ -489,7 +489,7 @@ async def lifespan(app: FastAPI):
         state.meta.setdefault("training_benchmarks", {})
 
     # Seed model_version if not present in meta.json (first run after adding this field)
-    state.meta.setdefault("model_version", "heila-v1.0.0")
+    state.meta.setdefault("model_version", "houseaccount-v1.0.0")
 
     _log("models_loaded", n_train=state.meta["n_train"],
          version=state.meta["model_version"],
@@ -930,7 +930,7 @@ def _retrain_sync() -> None:
             os.rename(tmp, dst)
 
         state.models.update(new_models)
-        new_version             = _bump_version(state.meta.get("model_version", "heila-v1.0.0"))
+        new_version             = _bump_version(state.meta.get("model_version", "houseaccount-v1.0.0"))
         state.meta["n_train"]       = len(y)
         state.meta["model_version"] = new_version
         with open(META_PATH, "w") as f:
@@ -1106,7 +1106,7 @@ async def _predict_one(req: PricingRequest, key_name: str) -> PricingResponse:
     hi  = max(hi,  mid)
 
     confidence    = compute_confidence(lo, hi, mid, req.service_category)
-    model_version = state.meta.get("model_version", "heila-v1.0.0")
+    model_version = state.meta.get("model_version", "houseaccount-v1.0.0")
     latency       = time.monotonic() - t0
 
     _REQ_DURATION.labels(category=req.service_category, endpoint="estimate").observe(latency)
@@ -1294,7 +1294,7 @@ def metrics():
             "total_estimates": total_estimates,
             "total_outcomes":  total_outcomes,
             "n_train":         state.meta.get("n_train"),
-            "model_version":   state.meta.get("model_version", "heila-v1.0.0"),
+            "model_version":   state.meta.get("model_version", "houseaccount-v1.0.0"),
             "retrain_running": state.retrain_running,
             "retrain_threshold": RETRAIN_THRESHOLD,
             "drift_threshold": DRIFT_THRESHOLD,
@@ -1447,7 +1447,7 @@ def health():
     return {
         "ok":              True,
         "models_loaded":   len(state.models),
-        "model_version":   state.meta.get("model_version", "heila-v1.0.0"),
+        "model_version":   state.meta.get("model_version", "houseaccount-v1.0.0"),
         "cache_size":      len(state.cache),
         "n_outcomes":      n_outcomes,
         "retrain_running": state.retrain_running,

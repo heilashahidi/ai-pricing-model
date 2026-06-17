@@ -101,7 +101,7 @@
     "HVAC": 333.07,
     "overall": 316.31
   },
-  "model_version": "heila-v1.0.0",
+  "model_version": "houseaccount-v1.0.0",
   "training_benchmarks": {
     "rmse_baseline": 95.9,
     "rmse_routed": 92.37,
