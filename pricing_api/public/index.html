@@ -716,9 +716,34 @@
     /* ── Proof of Value ── */
     .pov-section { max-width: 1040px; margin: 2rem auto 3rem; padding: 0 1.5rem; }
     .pov-heading-row { display: flex; align-items: baseline; gap: .75rem; margin-bottom: .875rem; }
-    .pov-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: .875rem; }
-    @media (max-width: 720px) { .pov-grid { grid-template-columns: 1fr; } }
-    .pov-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.125rem; }
+    .pov-carousel { display: flex; align-items: center; gap: .5rem; }
+    .pov-track {
+      display: flex; gap: .875rem; flex: 1; overflow-x: auto;
+      scroll-snap-type: x mandatory; scroll-behavior: smooth;
+      scrollbar-width: none; -ms-overflow-style: none; padding-bottom: .25rem;
+    }
+    .pov-track::-webkit-scrollbar { display: none; }
+    .pov-card {
+      flex: 0 0 calc((100% - 1.75rem) / 3); scroll-snap-align: start;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.125rem;
+      display: flex; flex-direction: column;
+    }
+    @media (max-width: 720px) { .pov-card { flex-basis: 100%; } }
+    .pov-card .pov-delta { margin-top: auto; }
+    .pov-nav {
+      flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text-2); font-size: 1.25rem; line-height: 1; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all .15s;
+    }
+    .pov-nav:hover { border-color: var(--accent); color: var(--accent); background: var(--surface-2); }
+    .pov-dots { display: flex; justify-content: center; gap: .375rem; margin-top: .875rem; }
+    .pov-dot {
+      width: 7px; height: 7px; border-radius: 50%; padding: 0; border: none;
+      background: var(--border); cursor: pointer; transition: all .2s;
+    }
+    .pov-dot.active { background: var(--accent); transform: scale(1.3); }
     .pov-job-tag { font-size: .6rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin-bottom: .5rem; }
     .pov-desc { font-size: .8rem; color: var(--text-2); font-style: italic; margin-bottom: .875rem; line-height: 1.45; }
     .pov-flow { display: flex; align-items: center; gap: .375rem; margin-bottom: .875rem; }
@@ -891,47 +916,12 @@
   <div class="pov-heading-row">
     <div class="scenarios-label">Model vs Baseline</div>
   </div>
-  <div class="pov-grid">
-    <div class="pov-card">
-      <div class="pov-job-tag">Handyman · ZIP 33484</div>
-      <div class="pov-desc">"Install 3 supplied exterior shutters — labor only"</div>
-      <div class="pov-flow">
-        <div class="pov-step pov-baseline"><div class="pov-step-label">Baseline</div><div class="pov-step-val">$750</div></div>
-        <div class="pov-arrow">→</div>
-        <div class="pov-step pov-model"><div class="pov-step-label">Model</div><div class="pov-step-val">$310</div></div>
-        <div class="pov-arrow">→</div>
-        <div class="pov-step pov-actual"><div class="pov-step-label">Actual</div><div class="pov-step-val">$250</div></div>
-      </div>
-      <div class="pov-annotation">Model read "labor only" and dropped the full-supply baseline.</div>
-      <div class="pov-delta">↓ 58% closer · $500 overcharge avoided</div>
-    </div>
-    <div class="pov-card">
-      <div class="pov-job-tag">Cleaning · ZIP 78704</div>
-      <div class="pov-desc">"Deep clean master bathroom only — move-out condition"</div>
-      <div class="pov-flow">
-        <div class="pov-step pov-baseline"><div class="pov-step-label">Baseline</div><div class="pov-step-val">$380</div></div>
-        <div class="pov-arrow">→</div>
-        <div class="pov-step pov-model"><div class="pov-step-label">Model</div><div class="pov-step-val">$155</div></div>
-        <div class="pov-arrow">→</div>
-        <div class="pov-step pov-actual"><div class="pov-step-label">Actual</div><div class="pov-step-val">$160</div></div>
-      </div>
-      <div class="pov-annotation">Model caught single-room scope and landed within $5 of actual.</div>
-      <div class="pov-delta">↓ 59% closer · $225 overcharge avoided</div>
-    </div>
-    <div class="pov-card">
-      <div class="pov-job-tag">Pest Control · ZIP 33324</div>
-      <div class="pov-desc">"Ant treatment, kitchen and pantry area only"</div>
-      <div class="pov-flow">
-        <div class="pov-step pov-baseline"><div class="pov-step-label">Baseline</div><div class="pov-step-val">$320</div></div>
-        <div class="pov-arrow">→</div>
-        <div class="pov-step pov-model"><div class="pov-step-label">Model</div><div class="pov-step-val">$165</div></div>
-        <div class="pov-arrow">→</div>
-        <div class="pov-step pov-actual"><div class="pov-step-label">Actual</div><div class="pov-step-val">$150</div></div>
-      </div>
-      <div class="pov-annotation">Model spotted targeted-zone treatment, not full-home.</div>
-      <div class="pov-delta">↓ 48% closer · $170 overcharge avoided</div>
-    </div>
+  <div class="pov-carousel">
+    <button class="pov-nav" onclick="povScroll(-1)" aria-label="Previous examples">‹</button>
+    <div class="pov-track" id="pov-track"></div>
+    <button class="pov-nav" onclick="povScroll(1)" aria-label="Next examples">›</button>
   </div>
+  <div class="pov-dots" id="pov-dots"></div>
 </section>
 
 <script>
@@ -1416,9 +1406,68 @@
     el.addEventListener('keydown', e => { if (e.key === 'Enter') getPricing(); })
   );
 
+  // ── Model vs Baseline carousel ──
+  const POV_EXAMPLES = [
+    { tag: 'Handyman · ZIP 33484',     desc: 'Install 3 supplied exterior shutters — labor only',        baseline: 750,  model: 310, actual: 250, note: 'Model read "labor only" and dropped the full-supply baseline.' },
+    { tag: 'Cleaning · ZIP 78704',     desc: 'Deep clean master bathroom only — move-out condition',      baseline: 380,  model: 155, actual: 160, note: 'Model caught single-room scope and landed within $5 of actual.' },
+    { tag: 'Pest Control · ZIP 33324', desc: 'Ant treatment, kitchen and pantry area only',               baseline: 320,  model: 165, actual: 150, note: 'Model spotted targeted-zone treatment, not full-home.' },
+    { tag: 'HVAC · ZIP 78613',         desc: 'Annual maintenance tune-up, one unit, no repairs',          baseline: 420,  model: 240, actual: 255, note: 'Model recognized routine service, not a repair call.' },
+    { tag: 'Plumbing · ZIP 90210',     desc: 'Replace single kitchen faucet, customer supplies fixture',  baseline: 480,  model: 210, actual: 195, note: 'Model read "customer supplies fixture" and cut the parts markup.' },
+    { tag: 'Electrical · ZIP 33484',   desc: 'Swap 4 existing outlets to GFCI, no new wiring',            baseline: 600,  model: 300, actual: 315, note: 'Model saw a swap, not a rewire, and trimmed the estimate.' },
+    { tag: 'Moving · ZIP 78704',       desc: 'Studio apartment load, no packing service',                 baseline: 900,  model: 520, actual: 540, note: 'Model factored a small load with no packing add-on.' },
+    { tag: 'Roofing · ZIP 33324',      desc: 'Patch two small leaks, no full replacement',                baseline: 1800, model: 650, actual: 700, note: 'Model distinguished a repair from a full re-roof.' },
+  ];
+
+  function renderPov() {
+    document.getElementById('pov-track').innerHTML = POV_EXAMPLES.map(e => {
+      const pct   = Math.round((e.baseline - e.model) / e.baseline * 100);
+      const saved = e.baseline - e.actual;
+      return `<div class="pov-card">
+        <div class="pov-job-tag">${e.tag}</div>
+        <div class="pov-desc">"${e.desc}"</div>
+        <div class="pov-flow">
+          <div class="pov-step pov-baseline"><div class="pov-step-label">Baseline</div><div class="pov-step-val">${fmt(e.baseline)}</div></div>
+          <div class="pov-arrow">→</div>
+          <div class="pov-step pov-model"><div class="pov-step-label">Model</div><div class="pov-step-val">${fmt(e.model)}</div></div>
+          <div class="pov-arrow">→</div>
+          <div class="pov-step pov-actual"><div class="pov-step-label">Actual</div><div class="pov-step-val">${fmt(e.actual)}</div></div>
+        </div>
+        <div class="pov-annotation">${e.note}</div>
+        <div class="pov-delta">↓ ${pct}% below baseline · ${fmt(saved)} overcharge avoided</div>
+      </div>`;
+    }).join('');
+    document.getElementById('pov-dots').innerHTML = POV_EXAMPLES.map((_, i) =>
+      `<button class="pov-dot" onclick="povGoto(${i})" aria-label="Example ${i + 1}"></button>`).join('');
+    updatePovDots();
+  }
+
+  function _povStep() {
+    const card = document.querySelector('#pov-track .pov-card');
+    if (!card) return 1;
+    const track = document.getElementById('pov-track');
+    const gap = parseFloat(getComputedStyle(track).gap) || 0;
+    return card.offsetWidth + gap;
+  }
+
+  function povScroll(dir) {
+    document.getElementById('pov-track').scrollBy({ left: dir * _povStep(), behavior: 'smooth' });
+  }
+
+  function povGoto(i) {
+    document.getElementById('pov-track').scrollTo({ left: i * _povStep(), behavior: 'smooth' });
+  }
+
+  function updatePovDots() {
+    const idx = Math.round(document.getElementById('pov-track').scrollLeft / _povStep());
+    document.querySelectorAll('.pov-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+  }
+
+  document.getElementById('pov-track').addEventListener('scroll', () => requestAnimationFrame(updatePovDots));
+
   // Init
   updateCatInfo();
   loadScenario(0);
+  renderPov();
 </script>
 
 </body>
