@@ -1,0 +1,13 @@
+{
+  "target": 0.9,
+  "raw": {
+    "coverage": 65.9,
+    "median_width": 106.0
+  },
+  "cqr": {
+    "coverage": 93.2,
+    "median_width": 249.0
+  },
+  "mean_offset": 68.6,
+  "reaches_target": true
+}

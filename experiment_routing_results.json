@@ -1,0 +1,99 @@
+{
+  "overall": {
+    "baseline": {
+      "MAPE": 11.56,
+      "WAPE": 9.17,
+      "MAE": 53.54
+    },
+    "before": {
+      "MAPE": 11.21,
+      "WAPE": 8.92,
+      "MAE": 52.09
+    },
+    "after": {
+      "MAPE": 11.33,
+      "WAPE": 9.02,
+      "MAE": 52.7
+    },
+    "delta_mape_pp": -0.12
+  },
+  "per_category": {
+    "Appliance Repair": {
+      "n": 33,
+      "baseline": 12.6,
+      "before": 12.6,
+      "after": 13.1
+    },
+    "Cleaning": {
+      "n": 66,
+      "baseline": 8.7,
+      "before": 8.6,
+      "after": 8.9
+    },
+    "Flooring": {
+      "n": 4,
+      "baseline": 29.4,
+      "before": 28.7,
+      "after": 28.6
+    },
+    "HVAC": {
+      "n": 65,
+      "baseline": 9.7,
+      "before": 9.6,
+      "after": 10.0
+    },
+    "Handyman": {
+      "n": 14,
+      "baseline": 48.4,
+      "before": 40.7,
+      "after": 40.3
+    },
+    "Landscaping": {
+      "n": 65,
+      "baseline": 9.7,
+      "before": 9.8,
+      "after": 9.9
+    },
+    "Moving": {
+      "n": 66,
+      "baseline": 9.2,
+      "before": 9.2,
+      "after": 9.5
+    },
+    "Pest Control": {
+      "n": 65,
+      "baseline": 10.2,
+      "before": 9.8,
+      "after": 9.3
+    },
+    "Plumbing": {
+      "n": 3,
+      "baseline": 35.8,
+      "before": 42.1,
+      "after": 35.8
+    },
+    "Roofing": {
+      "n": 24,
+      "baseline": 9.3,
+      "before": 8.7,
+      "after": 9.5
+    }
+  },
+  "recommended_policy": {
+    "Appliance Repair": 0.0,
+    "Cleaning": 0.0,
+    "Electrical": 0.0,
+    "Exterior": 0.0,
+    "Flooring": 1.0,
+    "General Contractor": 0.0,
+    "HVAC": 0.2,
+    "Handyman": 1.0,
+    "Landscaping": 0.2,
+    "Moving": 0.0,
+    "Painting": 0.0,
+    "Pest Control": 0.6,
+    "Plumbing": 0.0,
+    "Roofing": 0.8
+  },
+  "regressions": []
+}
