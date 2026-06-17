@@ -13,5 +13,6 @@ Rails.application.routes.draw do
   post "/api/estimate"       => "pricing#public_estimate"
   post "/api/estimate-batch" => "pricing#estimate_batch"
   post "/api/outcome"        => "pricing#outcome"
+  post "/api/public/outcome" => "pricing#public_outcome"
   post "/api/book"           => "pricing#book"
 end

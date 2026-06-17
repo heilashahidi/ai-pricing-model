@@ -386,7 +386,8 @@ def _init_db(path: str) -> None:
                 job_id       TEXT PRIMARY KEY,
                 final_price  REAL NOT NULL,
                 ape          REAL,
-                recorded_at  TEXT NOT NULL
+                recorded_at  TEXT NOT NULL,
+                source       TEXT NOT NULL DEFAULT 'verified'
             );
 
             CREATE TABLE IF NOT EXISTS model_health (
@@ -401,6 +402,11 @@ def _init_db(path: str) -> None:
             CREATE INDEX IF NOT EXISTS idx_outcomes_recorded
                 ON outcomes(recorded_at);
         """)
+        # Migrate DBs created before the source column existed. Pre-existing rows
+        # came through the authenticated path, so 'verified' is the correct default.
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(outcomes)")]
+        if "source" not in cols:
+            conn.execute("ALTER TABLE outcomes ADD COLUMN source TEXT NOT NULL DEFAULT 'verified'")
 
 
 def _lookup_stored_estimate(job_id: str) -> Optional["PricingResponse"]:
@@ -683,6 +689,7 @@ class BatchPricingResponse(BaseModel):
 class OutcomeRequest(BaseModel):
     job_id:      str
     final_price: float = Field(gt=0)
+    source:      str   = "verified"   # "verified" trains the model; "demo" is recorded only
 
 class OutcomeResponse(BaseModel):
     ok:          bool           = True
@@ -903,7 +910,8 @@ def _retrain_sync() -> None:
         with sqlite3.connect(DB_PATH) as conn:
             db_rows = conn.execute(
                 "SELECT e.feature_vector, o.final_price FROM outcomes o "
-                "JOIN estimates e ON o.job_id = e.job_id"
+                "JOIN estimates e ON o.job_id = e.job_id "
+                "WHERE o.source = 'verified'"
             ).fetchall()
         if db_rows:
             X_parts.append(np.array([json.loads(r[0]) for r in db_rows], dtype=np.float32))
@@ -931,7 +939,8 @@ def _retrain_sync() -> None:
 
         state.models.update(new_models)
         new_version             = _bump_version(state.meta.get("model_version", "houseaccount-v1.0.0"))
-        state.meta["n_train"]       = len(y)
+        state.meta["n_train"]            = len(y)
+        state.meta["n_outcomes_trained"] = len(db_rows)
         state.meta["model_version"] = new_version
         with open(META_PATH, "w") as f:
             json.dump(state.meta, f, indent=2)
@@ -951,11 +960,15 @@ async def _maybe_retrain() -> None:
         return
     try:
         with sqlite3.connect(DB_PATH) as conn:
-            new_labeled = conn.execute(
-                "SELECT COUNT(*) FROM outcomes o JOIN estimates e ON o.job_id = e.job_id"
+            verified = conn.execute(
+                "SELECT COUNT(*) FROM outcomes o JOIN estimates e ON o.job_id = e.job_id "
+                "WHERE o.source = 'verified'"
             ).fetchone()[0]
-        if new_labeled >= RETRAIN_THRESHOLD and new_labeled > state.meta.get("n_train", 0):
-            _log("retrain_triggered", new_labeled=new_labeled)
+        # Compound: retrain once RETRAIN_THRESHOLD new verified labels arrive since
+        # the last training, not once the cumulative count exceeds the seed set.
+        trained = state.meta.get("n_outcomes_trained", 0)
+        if verified - trained >= RETRAIN_THRESHOLD:
+            _log("retrain_triggered", verified=verified, trained=trained)
             state.retrain_running = True
             _RETRAIN_RUNNING.set(1)
             asyncio.get_event_loop().run_in_executor(None, _retrain_sync)
@@ -1178,11 +1191,12 @@ async def record_outcome(req: OutcomeRequest,
                 ).fetchone()
                 if row and row[0] and row[0] > 0:
                     ape = round(abs(req.final_price - row[0]) / req.final_price * 100, 2)
+                source = "verified" if req.source == "verified" else "demo"
                 conn.execute(
-                    "INSERT OR REPLACE INTO outcomes (job_id, final_price, ape, recorded_at)"
-                    " VALUES (?,?,?,?)",
+                    "INSERT OR REPLACE INTO outcomes (job_id, final_price, ape, recorded_at, source)"
+                    " VALUES (?,?,?,?,?)",
                     (req.job_id, req.final_price, ape,
-                     datetime.now(timezone.utc).isoformat()),
+                     datetime.now(timezone.utc).isoformat(), source),
                 )
     except Exception as e:
         _log("db_error", op="record_outcome", job_id=req.job_id, error=str(e))

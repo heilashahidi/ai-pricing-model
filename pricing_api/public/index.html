@@ -926,7 +926,7 @@
 
 <script>
   const ENDPOINT = '/api/estimate';
-  const OUTCOME_ENDPOINT = '/api/outcome';
+  const OUTCOME_ENDPOINT = '/api/public/outcome';
   const _history = [];
 
   // ── 1. Per-category stats (from eval_results.json, production routing applied) ──
@@ -1128,7 +1128,7 @@
       document.getElementById('outcome-result').innerHTML =
         `<div class="outcome-thanks">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>
-          Submitted — this price trains the next model.
+          Recorded — verified job outcomes retrain the model.
         </div>`;
       document.getElementById('actual-price').disabled = true;
       btn.style.display = 'none';

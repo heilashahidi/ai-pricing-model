@@ -54,7 +54,22 @@ class PricingController < ApplicationController
     price = body["final_price"]
     return render_error 400, "final_price must be a positive number" unless price.is_a? Numeric
     return render_error 400, "final_price must be a positive number" unless price.positive?
-    result = PricingServiceClient.new.call OUTCOME_SERVICE_URL, body.slice(*OUTCOME_REQUIRED_FIELDS)
+    payload = body.slice(*OUTCOME_REQUIRED_FIELDS).merge("source" => "verified")
+    result = PricingServiceClient.new.call OUTCOME_SERVICE_URL, payload
+    render json: result[:body], status: result[:status]
+  end
+
+  # Homeowner-facing outcome submission. No Bearer required; recorded as "demo"
+  # so untrusted public input is never used for model retraining.
+  def public_outcome
+    body = parse_body
+    return render_error 400, "Malformed JSON" if body.nil?
+    missing = OUTCOME_REQUIRED_FIELDS.find { |field| body[field].blank? }
+    return render_error 400, "#{missing} required" if missing
+    price = body["final_price"]
+    return render_error 400, "final_price must be a positive number" unless price.is_a?(Numeric) && price.positive?
+    payload = body.slice(*OUTCOME_REQUIRED_FIELDS).merge("source" => "demo")
+    result = PricingServiceClient.new.call OUTCOME_SERVICE_URL, payload
     render json: result[:body], status: result[:status]
   end
 
