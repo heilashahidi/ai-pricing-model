@@ -136,9 +136,14 @@ def _log(event: str, **fields) -> None:
 
 MODELS_DIR        = "models"
 META_PATH         = os.path.join(MODELS_DIR, "meta.json")
-DB_PATH           = os.path.join(MODELS_DIR, "outcomes.db")
 SEED_DB_PATH      = os.path.join(MODELS_DIR, "seed.db")
-CACHE_PATH        = os.path.join(MODELS_DIR, "extraction_cache.pkl")
+# Accumulated outcomes are the only irreplaceable runtime state — the model
+# rebuilds from them. They must live on a persistent volume or every deploy
+# resets the DB to seed.db and wipes collected labels. PRICING_DATA_DIR points
+# at the mount in prod (e.g. /data); defaults to MODELS_DIR for local dev.
+DATA_DIR          = os.environ.get("PRICING_DATA_DIR", MODELS_DIR)
+DB_PATH           = os.path.join(DATA_DIR, "outcomes.db")
+CACHE_PATH        = os.path.join(DATA_DIR, "extraction_cache.pkl")
 FEATURES_CSV      = "features_enriched.csv"
 RETRAIN_THRESHOLD = int(os.environ.get("RETRAIN_THRESHOLD", "20"))
 # Alert when rolling 30d MAPE exceeds this (default = 1.5 × 11.6% baseline)
@@ -538,11 +543,13 @@ async def lifespan(app: FastAPI):
     state.rate_limiter    = _RateLimiter()
     state.key_store       = _ApiKeyStore()
 
-    # DB — restore a committed seed on a fresh deploy so metrics aren't empty
+    # DB — restore a committed seed only when the (possibly volume-backed) data
+    # dir has no DB yet, so existing accumulated outcomes are never overwritten.
     state.db_lock = threading.Lock()
+    os.makedirs(DATA_DIR, exist_ok=True)
     if not os.path.exists(DB_PATH) and os.path.exists(SEED_DB_PATH):
         shutil.copy(SEED_DB_PATH, DB_PATH)
-        _log("startup", phase="db_seed", source=SEED_DB_PATH)
+        _log("startup", phase="db_seed", source=SEED_DB_PATH, dest=DB_PATH)
     _init_db(DB_PATH)
 
     # Prometheus initial gauge sync
