@@ -2,6 +2,11 @@
 
 An AI-powered pricing model for HouseAccount's home services marketplace. Takes a booking request, extracts scope signals from the job description using Claude Haiku, and returns a price estimate with a calibrated confidence score.
 
+**Live:**
+
+- **Demo & live metrics (GitHub Pages):** https://heilashahidi.github.io/ai-pricing-model/
+- **Production API (Railway):** https://pricing-ml-production.up.railway.app — [`/health`](https://pricing-ml-production.up.railway.app/health) · [`/metrics`](https://pricing-ml-production.up.railway.app/metrics) · [`/metrics/dashboard`](https://pricing-ml-production.up.railway.app/metrics/dashboard)
+
 **Results vs. baseline (`original_estimate` column):**
 
 | Benchmark | Baseline | This model | Result |
