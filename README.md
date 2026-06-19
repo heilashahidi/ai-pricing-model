@@ -4,8 +4,8 @@ An AI-powered pricing model for HouseAccount's home services marketplace. Takes 
 
 **Live:**
 
-- **Demo & live metrics (GitHub Pages):** https://heilashahidi.github.io/ai-pricing-model/
-- **Production API (Railway):** https://pricing-ml-production.up.railway.app — [`/health`](https://pricing-ml-production.up.railway.app/health) · [`/metrics`](https://pricing-ml-production.up.railway.app/metrics) · [`/metrics/dashboard`](https://pricing-ml-production.up.railway.app/metrics/dashboard)
+- **Live demo (Railway):** https://houseaccount-pricing.up.railway.app/
+- **Live metrics dashboard (GitHub Pages):** https://heilashahidi.github.io/ai-pricing-model/
 
 **Results vs. baseline (`original_estimate` column):**
 
