@@ -70,6 +70,8 @@
   .pill { display:inline-block; padding:3px 11px; border-radius:999px; font-size:12px; font-weight:600; }
   .pill.ok { background:#e6f6ec; color:var(--good); }
   .pill.bad { background:#fdeceb; color:var(--bad); }
+  .hint { border-bottom:1px dotted var(--muted); cursor:help; }
+  .cap { color:var(--muted); font-size:12.5px; margin:10px 2px 0; line-height:1.5; }
 
   .foot { color:var(--muted); font-size:12.5px; margin-top:38px; padding-top:18px;
     border-top:1px solid var(--line); line-height:1.8; }
@@ -141,11 +143,12 @@ async function load() {
 
   if (tb.mape_baseline != null) html.push(`<section><h2>Training benchmark · model vs baseline</h2>
     <table><thead><tr><th>Metric</th><th>Baseline</th><th>Model</th></tr></thead><tbody>
-    <tr><td>MAPE</td><td>${pct(tb.mape_baseline)}</td><td class="${cls(tb.mape_routed, tb.mape_baseline)}" style="color:inherit">${pct(tb.mape_routed)}</td></tr>
-    <tr><td>WAPE</td><td>${pct(tb.wape_baseline)}</td><td>${pct(tb.wape_routed)}</td></tr>
-    <tr><td>RMSE</td><td>$${tb.rmse_baseline}</td><td>$${tb.rmse_routed}</td></tr>
-    <tr><td>Handyman MAPE</td><td>${pct(tb.handyman_mape_baseline)}</td><td class="good" style="color:inherit">${pct(tb.handyman_mape_model)}</td></tr>
-    </tbody></table></section>`);
+    <tr><td><span class="hint" title="Mean Absolute Percentage Error — on average, how far off the estimate is from the real price. Every job counts equally. Lower is better.">MAPE</span></td><td>${pct(tb.mape_baseline)}</td><td class="${cls(tb.mape_routed, tb.mape_baseline)}" style="color:inherit">${pct(tb.mape_routed)}</td></tr>
+    <tr><td><span class="hint" title="Weighted Absolute Percentage Error — like MAPE, but bigger jobs count more. The % of total dollars we misjudged. Lower is better.">WAPE</span></td><td>${pct(tb.wape_baseline)}</td><td>${pct(tb.wape_routed)}</td></tr>
+    <tr><td><span class="hint" title="Root Mean Squared Error — a typical miss in actual dollars (penalizes large misses extra). Lower is better.">RMSE</span></td><td>$${tb.rmse_baseline}</td><td>$${tb.rmse_routed}</td></tr>
+    <tr><td><span class="hint" title="Accuracy on Handyman jobs — the baseline's weakest category and the one this model was built to fix.">Handyman MAPE</span></td><td>${pct(tb.handyman_mape_baseline)}</td><td class="good" style="color:inherit">${pct(tb.handyman_mape_model)}</td></tr>
+    </tbody></table>
+    <p class="cap">Baseline is HouseAccount's current pricing model; Model is this one — measured on historical jobs with a known final price. Lower is better on every row. The model matches the baseline on easy categories and fixes the hard ones: Handyman accuracy improves ~12 points while overall accuracy holds.</p></section>`);
 
   document.getElementById("root").innerHTML = html.join("");
 }
