@@ -11,8 +11,8 @@ An AI-powered pricing model for HouseAccount's home services marketplace. Takes 
 
 | Benchmark | Baseline | This model | Result |
 |-----------|----------|------------|--------|
-| Blended MAPE (411 priced rows) | 11.6% | 11.4% (routed) | ✓ beats |
-| Handyman MAPE (real-only target) | 48.4% | 36.2% (blended) | ✓ beats ~40% target |
+| Blended MAPE (411 priced rows) | 11.6% | 11.2% (routed) | ✓ beats |
+| Handyman MAPE (real-only target) | 48.4% | 26.6% (model, LOO) | ✓ beats ~40% target |
 | Response time | — | 5–11ms warm | ✓ under 2s |
 
 ---
@@ -215,6 +215,8 @@ Three independent XGBoost regressors with `objective='reg:quantileerror'`:
 - q=0.1 → `estimate_lo`
 - q=0.5 → `estimate_midpoint`
 - q=0.9 → `estimate_hi`
+
+Targets are `log(price)`, so the pinball loss optimizes relative error — what MAPE measures — instead of absolute dollars. This is what fixed the Handyman tail (LOO MAPE 48.4% → 26.6%). The serving layer inverts with `exp`, gated on a `target_transform` flag in `meta.json` so the prediction scale is read from the model artifact itself.
 
 Post-prediction interval crossing is corrected: `lo = min(lo, mid)`, `hi = max(hi, mid)`.
 
