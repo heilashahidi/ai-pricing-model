@@ -15,17 +15,30 @@
   "cv_overall": {
     "label": "Model 5-fold CV (all categories)",
     "n": 411,
-    "MAPE": 15.12,
-    "MAE": 74.2,
-    "RMSE": 184.27,
-    "WAPE": 12.7,
-    "Bias": -13.96,
-    "Coverage": 69.6,
-    "Pinball05": 16.33,
-    "Pinball50": 37.1,
-    "Pinball95": 19.46
+    "MAPE": 12.89,
+    "MAE": 73.52,
+    "RMSE": 213.39,
+    "WAPE": 12.59,
+    "Bias": -24.42,
+    "Coverage": 69.3,
+    "Pinball05": 16.08,
+    "Pinball50": 36.76,
+    "Pinball95": 19.63
   },
   "routed": {
+    "label": "Routed (baseline/model by category)",
+    "n": 411,
+    "MAPE": 11.19,
+    "MAE": 55.25,
+    "RMSE": 113.3,
+    "WAPE": 9.46,
+    "Bias": -0.34,
+    "Coverage": 95.9,
+    "Pinball05": 10.78,
+    "Pinball50": 27.62,
+    "Pinball95": 14.6
+  },
+  "routed_cf": {
     "label": "Routed CF (baseline/CF by category)",
     "n": 411,
     "MAPE": 11.27,
@@ -37,19 +50,6 @@
     "Pinball05": 11.29,
     "Pinball50": 26.5,
     "Pinball95": 11.5
-  },
-  "routed_model_only": {
-    "label": "Routed (baseline/model by category)",
-    "n": 411,
-    "MAPE": 11.46,
-    "MAE": 54.4,
-    "RMSE": 100.57,
-    "WAPE": 9.31,
-    "Bias": 2.63,
-    "Coverage": 95.4,
-    "Pinball05": 10.76,
-    "Pinball50": 27.2,
-    "Pinball95": 14.1
   },
   "correction_factor": {
     "label": "Correction-factor model (CV)",
@@ -80,140 +80,140 @@
   "handyman_model": {
     "label": "Model LOO-CV (Handyman)",
     "n": 14,
-    "MAPE": 36.89,
-    "MAE": 107.12,
-    "RMSE": 160.08,
-    "WAPE": 40.92,
-    "Bias": 26.59,
+    "MAPE": 26.63,
+    "MAE": 80.42,
+    "RMSE": 124.54,
+    "WAPE": 30.72,
+    "Bias": 2.17,
     "Coverage": 50.0,
-    "Pinball05": 27.21,
-    "Pinball50": 53.56,
-    "Pinball95": 14.45
+    "Pinball05": 17.3,
+    "Pinball50": 40.21,
+    "Pinball95": 35.73
   },
   "handyman_blended": {
     "label": "Model blended (Handyman)",
     "n": 14,
-    "MAPE": 39.86,
-    "MAE": 115.77,
-    "RMSE": 174.75,
-    "WAPE": 44.22,
-    "Bias": 46.52,
-    "Coverage": 71.4,
-    "Pinball05": 25.53,
-    "Pinball50": 57.89,
-    "Pinball95": 12.64
+    "MAPE": 33.01,
+    "MAE": 97.91,
+    "RMSE": 144.6,
+    "WAPE": 37.4,
+    "Bias": 29.43,
+    "Coverage": 57.1,
+    "Pinball05": 18.59,
+    "Pinball50": 48.96,
+    "Pinball95": 28.79
   },
   "per_category": {
     "Appliance Repair": {
       "n": 33,
-      "model_MAPE": 23.1,
+      "model_MAPE": 16.3,
       "baseline_MAPE": 12.6,
-      "improvement": -10.5
+      "improvement": -3.6
     },
     "Cleaning": {
       "n": 66,
-      "model_MAPE": 9.5,
+      "model_MAPE": 9.8,
       "baseline_MAPE": 8.7,
-      "improvement": -0.8
+      "improvement": -1.1
     },
     "Flooring": {
       "n": 4,
-      "model_MAPE": 36.2,
+      "model_MAPE": 37.2,
       "baseline_MAPE": 29.4,
-      "improvement": -6.8
+      "improvement": -7.8
     },
     "HVAC": {
       "n": 65,
-      "model_MAPE": 18.3,
+      "model_MAPE": 12.4,
       "baseline_MAPE": 9.7,
-      "improvement": -8.6
+      "improvement": -2.7
     },
     "Handyman": {
       "n": 14,
-      "model_MAPE": 41.9,
+      "model_MAPE": 32.3,
       "baseline_MAPE": 48.4,
-      "improvement": 6.5
+      "improvement": 16.2
     },
     "Landscaping": {
       "n": 65,
-      "model_MAPE": 13.8,
+      "model_MAPE": 12.5,
       "baseline_MAPE": 9.7,
-      "improvement": -4.1
+      "improvement": -2.8
     },
     "Moving": {
       "n": 66,
-      "model_MAPE": 10.9,
+      "model_MAPE": 9.7,
       "baseline_MAPE": 9.2,
-      "improvement": -1.7
+      "improvement": -0.5
     },
     "Pest Control": {
       "n": 65,
-      "model_MAPE": 11.4,
+      "model_MAPE": 11.1,
       "baseline_MAPE": 10.2,
-      "improvement": -1.1
+      "improvement": -0.9
     },
     "Plumbing": {
       "n": 3,
-      "model_MAPE": 40.1,
+      "model_MAPE": 39.2,
       "baseline_MAPE": 35.8,
-      "improvement": -4.2
+      "improvement": -3.4
     },
     "Roofing": {
       "n": 24,
-      "model_MAPE": 13.1,
+      "model_MAPE": 11.4,
       "baseline_MAPE": 9.3,
-      "improvement": -3.8
+      "improvement": -2.1
     }
   },
   "top_features": [
     [
       "original_estimate",
-      0.1392192393541336
+      0.1386382132768631
     ],
     [
       "complexity_tier",
-      0.08183499425649643
-    ],
-    [
-      "cat_cleaning",
-      0.08016815781593323
+      0.08797742426395416
     ],
     [
       "cat_moving",
-      0.0722944363951683
+      0.07514184713363647
     ],
     [
-      "cat_handyman",
-      0.061289381235837936
-    ],
-    [
-      "cat_flooring",
-      0.05877329036593437
-    ],
-    [
-      "cat_landscaping",
-      0.05826324224472046
-    ],
-    [
-      "task_count",
-      0.05814717337489128
+      "cat_cleaning",
+      0.07461122423410416
     ],
     [
       "has_area_measure",
-      0.05624684691429138
+      0.0625673159956932
+    ],
+    [
+      "cat_appliance_repair",
+      0.06111268326640129
+    ],
+    [
+      "cat_hvac",
+      0.06110720708966255
+    ],
+    [
+      "cat_handyman",
+      0.057940833270549774
     ],
     [
       "cat_pest_control",
-      0.05599236115813255
+      0.05592561140656471
+    ],
+    [
+      "cat_landscaping",
+      0.051699068397283554
     ]
   ],
   "training_median_interval": 212.28,
   "benchmark": {
     "blended_baseline_mape": 11.56,
-    "blended_routed_mape": 11.27,
+    "blended_routed_mape": 11.19,
     "blended_beats_baseline": true,
     "handyman_baseline_mape": 48.44,
-    "handyman_model_mape": 36.89,
+    "handyman_model_mape": 26.63,
     "handyman_beats_baseline": true
   }
 }

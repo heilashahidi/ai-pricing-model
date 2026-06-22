@@ -844,10 +844,15 @@ def route_predict(req: PricingRequest, X: np.ndarray) -> tuple[float, float, flo
         hi  = req.original_estimate_hi  if req.original_estimate_hi  is not None else req.original_estimate * 1.2
         return fix_intervals(lo, req.original_estimate, hi)
 
+    # Models trained in log-space (meta.target_transform) predict log-price;
+    # invert before treating outputs as dollars. The flag makes the artifact
+    # self-describing so new serving code can never misread an old raw-space
+    # model (or vice versa) — a mismatch would misprice by orders of magnitude.
+    inv = np.exp if state.meta.get("target_transform") == "log" else (lambda v: v)
     lo, mid, hi = fix_intervals(
-        float(state.models[0.05].predict(X)[0]),
-        float(state.models[0.5].predict(X)[0]),
-        float(state.models[0.95].predict(X)[0]),
+        float(inv(state.models[0.05].predict(X)[0])),
+        float(inv(state.models[0.5].predict(X)[0])),
+        float(inv(state.models[0.95].predict(X)[0])),
     )
 
     # Widen intervals for high-variance categories to restore coverage.
@@ -930,11 +935,22 @@ def _retrain_sync() -> None:
 
         X = np.vstack(X_parts)
         y = np.concatenate(y_parts)
+
+        # Drop non-positive prices: the CSV seed path filters on truthy, not >0,
+        # so a stray 0/negative final_price would make np.log(y) produce nan and
+        # poison the whole quantile fit. (The DB path is already validated >0.)
+        pos = y > 0
+        if not pos.all():
+            _log("retrain_dropped_nonpositive", dropped=int((~pos).sum()))
+            X, y = X[pos], y[pos]
         _log("retrain_start", csv_rows=len(csv_rows), db_rows=len(db_rows), total=len(y))
 
+        # Match the saved model's target space so a retrain never silently
+        # reverts log-space gains. Serving inverts via meta.target_transform.
+        y_fit = np.log(y) if state.meta.get("target_transform") == "log" else y
         new_models = {q: xgb.XGBRegressor(**_xgb_params(q)) for q in [0.05, 0.5, 0.95]}
         for q, m in new_models.items():
-            m.fit(X, y)
+            m.fit(X, y_fit)
 
         tag_map = {0.05: "q005", 0.5: "q050", 0.95: "q095"}
         for q, m in new_models.items():
