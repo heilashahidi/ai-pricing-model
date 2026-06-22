@@ -80,7 +80,7 @@
     "high": 2
   },
   "n_train": 411,
-  "model_version": "houseaccount-v1.0.0",
+  "model_version": "houseaccount-v1.1.0",
   "target_transform": "log",
   "blend_weights": {
     "well_priced": 0.2,
