@@ -89,11 +89,11 @@ Expected response:
 {
   "ok": true,
   "job_id": "deploy-test-001",
-  "estimate_lo": 301.36,
-  "estimate_hi": 517.81,
-  "estimate_midpoint": 427.25,
-  "confidence": 0.66,
-  "model_version": "heila-v1.0.0"
+  "estimate_lo": 217.65,
+  "estimate_hi": 692.21,
+  "estimate_midpoint": 457.87,
+  "confidence": 0.49,
+  "model_version": "houseaccount-v1.1.0"
 }
 ```
 

@@ -139,11 +139,11 @@ Response:
 {
   "ok": true,
   "job_id": "abc123",
-  "estimate_lo": 343.02,
-  "estimate_hi": 525.57,
-  "estimate_midpoint": 427.25,
-  "confidence": 0.70,
-  "model_version": "heila-v1.0.0"
+  "estimate_lo": 217.65,
+  "estimate_hi": 692.21,
+  "estimate_midpoint": 457.87,
+  "confidence": 0.49,
+  "model_version": "houseaccount-v1.1.0"
 }
 ```
 
