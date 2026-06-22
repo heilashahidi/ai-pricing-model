@@ -80,42 +80,27 @@
     "high": 2
   },
   "n_train": 411,
+  "model_version": "houseaccount-v1.1.0",
+  "target_transform": "log",
   "blend_weights": {
     "well_priced": 0.2,
     "hard": 0.7
   },
   "category_estimate_medians": {
-    "Handyman": 250.0,
-    "Exterior": 2350.0,
-    "Moving": 352.75,
-    "Roofing": 362.445,
-    "Cleaning": 319.56,
-    "Pest Control": 376.3,
-    "Electrical": 225.0,
+    "Appliance Repair": 208.38,
     "Landscaping": 230.23,
+    "HVAC": 333.07,
+    "Handyman": 250.0,
     "Flooring": 653.1,
     "General Contractor": 825.0,
+    "Electrical": 225.0,
     "Plumbing": 240.0,
+    "Roofing": 362.445,
+    "Pest Control": 376.3,
+    "Cleaning": 319.56,
+    "Exterior": 2350.0,
     "Painting": 165.0,
-    "Appliance Repair": 208.38,
-    "HVAC": 333.07,
+    "Moving": 352.75,
     "overall": 316.31
-  },
-  "model_version": "houseaccount-v1.0.0",
-  "training_benchmarks": {
-    "rmse_baseline": 95.9,
-    "rmse_routed": 92.37,
-    "wape_baseline": 9.17,
-    "wape_routed": 9.08,
-    "mape_baseline": 11.56,
-    "mape_routed": 11.27,
-    "bias_baseline": 5.57,
-    "bias_routed": 3.56,
-    "handyman_rmse_baseline": 225.14,
-    "handyman_rmse_model": 160.08,
-    "handyman_wape_baseline": 53.55,
-    "handyman_wape_model": 40.92,
-    "handyman_mape_baseline": 48.44,
-    "handyman_mape_model": 36.89
   }
 }
