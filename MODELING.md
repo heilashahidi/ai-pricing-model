@@ -109,7 +109,7 @@ Five features are extracted from `job_description` using Claude Haiku with struc
 
 ### Architecture
 
-Three independent XGBoost regressors, each using `objective='reg:quantileerror'` (XGBoost 2.0+):
+Three independent XGBoost regressors, each using `objective='reg:quantileerror'` (XGBoost 2.0+). Targets are `log(price)` (`target_transform="log"` in `meta.json`) so the pinball loss optimizes relative error — what MAPE measures — rather than absolute dollars; the serving layer inverts with `exp`.
 
 | Model | Quantile | Output |
 |-------|----------|--------|
@@ -232,20 +232,20 @@ Section 3 of `integration_test.py` measures and asserts all three against the li
 
 | Metric | Baseline | Routed model | Δ |
 |--------|----------|-------------|---|
-| Blended MAPE | 11.6% | **11.4%** | −0.2pp ✓ |
-| Handyman MAPE (LOO-CV) | 48.4% | **36.2%** | −12.2pp ✓ |
-| MAE | $54 | $53 | −$1 |
-| WAPE | 9.2% | 9.2% | 0 |
-| Bias | +$6 | +$3 | near-zero |
-| Coverage (lo/hi interval) | 97.3% | 94.4% | −2.9pp |
+| Blended MAPE | 11.6% | **11.2%** | −0.4pp ✓ |
+| Handyman MAPE (LOO-CV) | 48.4% | **26.6%** | −21.8pp ✓ |
+| MAE | $54 | $55 | +$1 |
+| WAPE | 9.2% | 9.5% | +0.3pp |
+| Bias | +$6 | −$0 | near-zero |
+| Coverage (lo/hi interval) | 97.3% | 95.9% | −1.4pp |
 
-The baseline's 97.3% coverage reflects very wide intervals — the existing model is conservative. The routed model's 94.4% coverage tightens intervals while staying above 80% nominal for the blended set.
+The baseline's 97.3% coverage reflects very wide intervals — the existing model is conservative. The routed model's 95.9% coverage tightens intervals while staying above 80% nominal for the blended set. MAE and WAPE tick up marginally because log-space training optimizes relative (percentage) error, trading a little absolute-dollar accuracy for the large MAPE gain on the hard tail.
 
 ### Per-category MAPE improvement
 
 | Category | Baseline | Model | Change |
 |----------|----------|-------|--------|
-| Handyman | 48.4% | 33.8% | −14.6pp |
+| Handyman | 48.4% | 32.3% | −16.1pp |
 | Cleaning | 8.7% | 8.7% | 0 (routed to baseline) |
 | Moving | 9.2% | 9.2% | 0 (routed to baseline) |
 | Landscaping | 9.7% | 9.7% | 0 (routed to baseline) |
@@ -273,9 +273,9 @@ Well-priced categories are preserved exactly; the model only intervenes where it
 
 ## Known limitations
 
-**Handyman confidence intervals are too narrow.** LOO-CV coverage for Handyman is 57% against an 80% target. The q=0.05/q=0.95 quantile models underestimate the true spread for variable-scope categories. A 25% symmetric post-hoc interval widening is applied to the four high-variance categories (Handyman, Plumbing, Electrical, Flooring), which recovers coverage without shifting the midpoint.
+**Handyman confidence intervals are too narrow.** LOO-CV coverage for Handyman is 50% against an 80% target. The q=0.05/q=0.95 quantile models underestimate the true spread for variable-scope categories. A 25% symmetric post-hoc interval widening is applied to the four high-variance categories (Handyman, Plumbing, Electrical, Flooring), which recovers coverage without shifting the midpoint.
 
-**14 Handyman training rows.** LOO-CV MAPE on 14 rows is statistically noisy — a single outlier swings the metric by ~20 percentage points. The reported 36.2% is the mean across 14 leave-one-out folds, but the distribution is wide. More priced Handyman data is the highest-value thing HouseAccount could add to improve this model.
+**14 Handyman training rows.** LOO-CV MAPE on 14 rows is statistically noisy — a single outlier swings the metric by ~20 percentage points. The reported 26.6% is the mean across 14 leave-one-out folds, but the distribution is wide. More priced Handyman data is the highest-value thing HouseAccount could add to improve this model.
 
 **No ZIP-level income.** The model uses state-level income as a geographic feature. Labor cost varies substantially within states (San Francisco vs. Fresno, Manhattan vs. Buffalo). ZIP-level Census ACS data would improve predictions in high-variance states.
 

@@ -108,6 +108,18 @@ A systematic investigation into why the model underperformed the baseline in 9 o
 
 The investigation also clarified that the "9 of 10 categories worse" headline was a measurement artifact — 6 of those categories are `WELL_PRICED` and the routing strategy uses the baseline for them anyway. Actual deployed MAPE was already 11.41% vs 11.56% baseline.
 
+### 10. Log-space training — aligning the loss with MAPE
+
+The routing model above optimized absolute pinball loss, but the benchmark is MAPE — *relative* error. The two diverge: absolute loss over-weights expensive jobs and leaves the cheap, scope-heavy tail (Handyman) mispriced. Switching the quantile targets to `log(price)` makes the loss optimize relative error directly.
+
+Measured (5-fold CV / Handyman LOO, mean of 5 seeds): blended routed MAPE 11.4% → 11.2%, Handyman 36.2% → 26.6%, interval coverage unchanged. The win was the log transform itself, not a correction-factor framing — once `original_estimate` is a feature the trees can subtract it, so log-price beat log-ratio in a head-to-head.
+
+Two things adversarial review surfaced, both kept:
+- A self-describing `target_transform` flag in `meta.json`, because the flag only protects the serving side — an old binary loading a log-space model would misprice ~50x. Documented as a deploy-ordering constraint (not reachable under Railway's atomic deploy).
+- A `y > 0` guard in the online retrain before `np.log`: the CSV seed path filters on truthy, not positive, so a stray non-positive price would `nan`-poison the fit.
+
+Shipped as `houseaccount-v1.1.0`.
+
 ---
 
 ## Validation steps for AI-generated code
