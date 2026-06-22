@@ -6,6 +6,7 @@
       "pricing_service.py",
       "requirements.txt",
       "models/**",
+      "eval_results.json",
       "Dockerfile"
     ]
   },
